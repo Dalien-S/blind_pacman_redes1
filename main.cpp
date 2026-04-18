@@ -4,7 +4,6 @@
 
 #include <bitset>
 #include <iostream>
-// #include <string>
 
 #include "raw_sockets.hpp"
 
@@ -70,9 +69,10 @@ struct KermitMessage {
         unsigned char sequence : 6;
         MessageType type : 5;
     } header;
-    unsigned char crc; // TODO: remove this field later
-    char data[BUFFER_SIZE + 1]; // data stores the message bytes and the crc right after;
-                                // this buffer can store any message size from the protocol
+    unsigned char crc;  // TODO: remove this field later
+    char data[BUFFER_SIZE +
+              1];  // data stores the message bytes and the crc right after;
+                   // this buffer can store any message size from the protocol
 
     typedef enum {
         null_pointer,
@@ -136,6 +136,72 @@ struct KermitMessage {
 
         if (this->header.init_marker != KERMIT_INIT_MARKER) {
             return wrong_init_marker;
+        }
+
+        return no_error;
+    }
+
+    // - sends a message and expects an ACK in return from the socket;
+    // - if there's no message in return or if it receives NACK, then try
+    // sending the same message again
+    //
+    // - if the message type doesn't involve data (eg. ack/nack), then the
+    // parameter data and data size are ignored
+    MessageError sendAndWait(int socket, MessageType type, const char* data,
+                             unsigned int data_size) {
+        *this = (KermitMessage){
+            .header =
+                {
+                    .init_marker = KERMIT_INIT_MARKER,
+                    .size = (unsigned char)data_size,
+                    .sequence = (unsigned char)0,  // TODO: handle this later
+                    .type = type,
+                },
+            .crc = 0,
+            .data = {0},
+        };
+
+        MessageError ret = this->writeData(data, data_size);
+        if (ret != no_error) {
+            return ret;
+        }
+
+        int counter = 0;
+        while (true) {
+            switch (this->sendMessage(socket)) {
+                case MessageError::send_error:
+                    cerr << "error when sending message\n";
+                    continue;
+
+                case MessageError::no_error:
+                    break;
+            }
+
+            // - if we receive a timeout, then there are no messages from the
+            // socket (we try to send a message again;
+            // - if we receive 15 messages without an ACK response, then we try
+            // to send the message again
+            int counter = 0;
+            do {
+                ret = this->receiveMessage(socket);
+                if (ret == recv_timeout) {
+                    this->header.type = error;
+                    break;
+                } else {
+                    if (++counter > 15) {
+                        this->header.type = error;
+                        break;
+                    }
+                }
+            } while (ret != no_error);
+
+            if (this->header.type == ack) {
+                cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
+                return no_error;
+
+            } else if (this->header.type == nack) {
+                cerr << FONT_RED "received NACK\n" FONT_NORMAL;
+            }
         }
 
         return no_error;
