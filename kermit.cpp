@@ -8,7 +8,7 @@
 #include "macros.hpp"
 
 // TODO: this function needs to calculate(and set) the CRC too
-MessageError KermitMessage::writeData(const char* data, int data_size) {
+PacketError KermitPacket::writeData(const char* data, int data_size) {
     if (!data) {
         return null_pointer;
     }
@@ -22,16 +22,16 @@ MessageError KermitMessage::writeData(const char* data, int data_size) {
     return no_error;
 }
 
-int KermitMessage::sendMessage(int socket) {
+int KermitPacket::sendMessage(int socket) {
     unsigned long message_struct_size =
         sizeof(this->header) + this->header.size + 1;
 
     // just so there's no problem with the size of the message
-    char frame[message_struct_size + MINIMUM_MESSAGE_SIZE];
+    char frame[message_struct_size + MINIMUM_PACKET_SIZE];
 
     memcpy(frame, this, message_struct_size);
-    if (message_struct_size < MINIMUM_MESSAGE_SIZE) {
-        message_struct_size += MINIMUM_MESSAGE_SIZE - message_struct_size;
+    if (message_struct_size < MINIMUM_PACKET_SIZE) {
+        message_struct_size += MINIMUM_PACKET_SIZE - message_struct_size;
     }
 
     if (send(socket, (const void*)this, message_struct_size, 0) == -1) {
@@ -41,7 +41,7 @@ int KermitMessage::sendMessage(int socket) {
     return no_error;
 }
 
-MessageError KermitMessage::receiveMessage(int socket) {
+PacketError KermitPacket::receiveMessage(int socket) {
     int ret = recv(socket, this, sizeof(*this), 0);
 
     if (ret == -1) {
@@ -68,10 +68,10 @@ MessageError KermitMessage::receiveMessage(int socket) {
 //
 // - if the message type doesn't involve data (eg. ack/nack), then the
 // parameter data and data size are ignored
-MessageError KermitMessage::sendAndWait(int socket, MessageType type,
+PacketError KermitPacket::sendAndWait(int socket, PacketType type,
                                         int sequence, const char* data,
                                         unsigned int data_size) {
-    *this = (KermitMessage){
+    *this = (KermitPacket){
         .header =
             {
                 .init_marker = KERMIT_INIT_MARKER,
@@ -82,7 +82,7 @@ MessageError KermitMessage::sendAndWait(int socket, MessageType type,
         .data = {0},
     };
 
-    MessageError ret = this->writeData(data, data_size);
+    PacketError ret = this->writeData(data, data_size);
     if (ret != no_error) {
         return ret;
     }
@@ -90,11 +90,11 @@ MessageError KermitMessage::sendAndWait(int socket, MessageType type,
 
     while (true) {
         switch (this->sendMessage(socket)) {
-            case MessageError::send_error:
+            case PacketError::send_error:
                 cerr << "error when sending message\n";
                 continue;
 
-            case MessageError::no_error:
+            case PacketError::no_error:
                 break;
         }
         time_t timestamp = time(NULL);
@@ -141,7 +141,7 @@ MessageError KermitMessage::sendAndWait(int socket, MessageType type,
 }
 
 // requires message to be fully written excluding CRC
-MessageError KermitMessage::calculateCRC(bool is_check, char* crc_return) {
+PacketError KermitPacket::calculateCRC(bool is_check, char* crc_return) {
     if (!crc_return) return null_pointer;
 
     unsigned long message_size = sizeof(this->header) + this->header.size;
@@ -185,11 +185,11 @@ MessageError KermitMessage::calculateCRC(bool is_check, char* crc_return) {
     return no_error;
 }
 
-void KermitMessage::setCRC() {
+void KermitPacket::setCRC() {
     calculateCRC(false, &this->data[this->header.size]);
 }
 
-bool KermitMessage::checkCRC() {
+bool KermitPacket::checkCRC() {
     char crc;
     calculateCRC(true, &crc);
 
@@ -198,7 +198,7 @@ bool KermitMessage::checkCRC() {
     return false;
 }
 
-void KermitMessage::printHeader() {
+void KermitPacket::printHeader() {
     cerr << "init_marker: " << std::bitset<8>(this->header.init_marker) << "\n";
     cerr << "size: " << (int)this->header.size << "\n";
     cerr << "sequence: " << (int)this->header.sequence << "\n";
@@ -206,7 +206,7 @@ void KermitMessage::printHeader() {
     // cerr << "crc: " << (int)this->crc << "\n";
 }
 
-void KermitMessage::printData() {
+void KermitPacket::printData() {
     // cerr << std::bitset<BUFFER_SIZE>(this->data) << "\n";
     cerr << "(" FONT_RED;
     cerr.write(this->data, this->header.size);

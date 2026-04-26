@@ -19,9 +19,9 @@ int runServer(int socket) {
     unsigned int count = 0;
     while (true) {
         const char* data = messages[count % 5];
-        KermitMessage message;
+        KermitPacket message;
         message.header.sequence = count;
-        message.sendAndWait(socket, MessageType::data, count, data,
+        message.sendAndWait(socket, PacketType::data, count, data,
                             strlen(data));
 
         cerr << "message: " << count << "\n";
@@ -43,10 +43,10 @@ int runServer(int socket) {
 int runClient(int socket) {
     unsigned char sequence = 0;
     while (true) {
-        KermitMessage message;
+        KermitPacket message;
 
         switch (message.receiveMessage(socket)) {
-            case MessageError::no_error:
+            case PacketError::no_error:
                 break;
 
             default:
@@ -78,12 +78,12 @@ int runClient(int socket) {
         }
 
         switch (message.sendMessage(socket)) {
-            case MessageError::send_error:
+            case PacketError::send_error:
                 cerr << "error on send()\n";
                 exit(1);
                 break;
 
-            case MessageError::no_error:
+            case PacketError::no_error:
                 cerr << "no error when sending message\n";
                 break;
 

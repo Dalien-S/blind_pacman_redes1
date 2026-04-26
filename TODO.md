@@ -11,13 +11,14 @@
         - [ ] testes feitos
     - [ ] Verificar o *CRC do pacote*
         - [ ] Implementar o *algoritmo de CRC*
-            - [ ] parece funcionar
+            - [x] parece funcionar
             - [ ] testes feitos
         - [ ] parece funcionar
         - [ ] testes feitos
     - [ ] *timeout*
         - [ ] parece funcionar
         - [ ] testes feitos
+    - [ ] *sincrinização entre emissor e receptor*
     - [ ] *Sequência*
         - [x] parece funcionar
         - [ ] testes feitos

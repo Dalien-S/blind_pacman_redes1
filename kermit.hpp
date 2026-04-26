@@ -11,14 +11,14 @@
 #define TIMEOUT_MS 3000  // 3 seconds for timeout
 
 #define BUFFER_SIZE 32  // represented by 5 bits
-#define MINIMUM_MESSAGE_SIZE 14
+#define MINIMUM_PACKET_SIZE 14
 
 #define CRC_XOR_BITS 0b11010101
 
 using std::cerr;
 using std::cout;
 
-enum MessageType {
+enum PacketType {
     ack = 0,
     nack = 1,
     visualize = 2,
@@ -34,7 +34,7 @@ enum MessageType {
     error = 15,
     end_transmission = 16,
 };
-typedef enum MessageType MessageType;
+typedef enum PacketType PacketType;
 
 typedef enum {
     null_pointer,
@@ -45,15 +45,15 @@ typedef enum {
     recv_timeout,
     wrong_init_marker,
     no_error,
-} MessageError;
+} PacketError;
 
 // message that follows the kermit protocol
-struct KermitMessage {
+struct KermitPacket {
     struct {
         unsigned char init_marker = KERMIT_INIT_MARKER;
         unsigned char size : 5;  // max size is 32B!!!
         unsigned char sequence : 6;
-        MessageType type : 5;
+        PacketType type : 5;
     } header;
     char data[BUFFER_SIZE +
               1];  // data stores the message bytes and the crc right after;
@@ -61,9 +61,9 @@ struct KermitMessage {
 
     // writes data to the message
     // TODO: this function needs to calculate the CRC too
-    MessageError writeData(const char* data, int data_size);
+    PacketError writeData(const char* data, int data_size);
     int sendMessage(int socket);
-    MessageError receiveMessage(int socket);
+    PacketError receiveMessage(int socket);
 
     // - sends a message and expects an ACK in return from the socket;
     // - if there's no message in return or if it receives NACK, then try
@@ -71,15 +71,14 @@ struct KermitMessage {
     //
     // - if the message type doesn't involve data (eg. ack/nack), then the
     // parameter data and data size are ignored
-    MessageError sendAndWait(int socket, MessageType type, int sequence,
+    PacketError sendAndWait(int socket, PacketType type, int sequence,
                              const char* data, unsigned int data_size);
     // requires message to be fully written excluding CRC
-    MessageError calculateCRC(bool is_check, char* crc_return);
+    PacketError calculateCRC(bool is_check, char* crc_return);
     void setCRC();
     bool checkCRC();
     void printHeader();
     void printData();
 };
-typedef struct MessageHeader MessageHeader;
 
 #endif
