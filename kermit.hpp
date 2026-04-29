@@ -62,8 +62,8 @@ struct KermitPacket {
     // writes data to the message
     // TODO: this function needs to calculate the CRC too
     PacketError writeData(const char* data, int data_size);
-    int sendMessage(int socket);
-    PacketError receiveMessage(int socket);
+    int sendPacket(int socket);
+    PacketError receivePacket(int socket);
 
     // - sends a message and expects an ACK in return from the socket;
     // - if there's no message in return or if it receives NACK, then try
@@ -71,8 +71,9 @@ struct KermitPacket {
     //
     // - if the message type doesn't involve data (eg. ack/nack), then the
     // parameter data and data size are ignored
-    PacketError sendAndWait(int socket, PacketType type, int sequence,
+    PacketError send(int socket, PacketType type, int sequence,
                              const char* data, unsigned int data_size);
+    PacketError confirmSend(int socket);
     // requires message to be fully written excluding CRC
     PacketError calculateCRC(bool is_check, char* crc_return);
     void setCRC();

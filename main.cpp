@@ -21,7 +21,7 @@ int runServer(int socket) {
         const char* data = messages[count % 5];
         KermitPacket message;
         message.header.sequence = count;
-        message.sendAndWait(socket, PacketType::data, count, data,
+        message.send(socket, PacketType::data, count, data,
                             strlen(data));
 
         cerr << "message: " << count << "\n";
@@ -30,7 +30,7 @@ int runServer(int socket) {
         if (count % 5 == 0) {
             message.header.init_marker = 8;
             for (int i = 0; i < 15; i++) {
-                message.sendMessage(socket);
+                message.sendPacket(socket);
                 cerr << "sent dummy message: " << i << "\n";
             }
             break;
@@ -45,7 +45,7 @@ int runClient(int socket) {
     while (true) {
         KermitPacket message;
 
-        switch (message.receiveMessage(socket)) {
+        switch (message.receivePacket(socket)) {
             case PacketError::no_error:
                 break;
 
@@ -77,7 +77,7 @@ int runClient(int socket) {
             message.header.type = ack;
         }
 
-        switch (message.sendMessage(socket)) {
+        switch (message.sendPacket(socket)) {
             case PacketError::send_error:
                 cerr << "error on send()\n";
                 exit(1);
