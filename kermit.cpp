@@ -4,6 +4,7 @@
 
 #include <bitset>
 #include <ctime>
+// #include <cstdlib>
 
 #include "macros.hpp"
 
@@ -22,7 +23,7 @@ PacketError KermitPacket::writeData(const char* data, int data_size) {
     return no_error;
 }
 
-int KermitPacket::sendMessage(int socket) {
+int KermitPacket::sendPacket(int socket) {
     unsigned long message_struct_size =
         sizeof(this->header) + this->header.size + 1;
 
@@ -34,14 +35,14 @@ int KermitPacket::sendMessage(int socket) {
         message_struct_size += MINIMUM_PACKET_SIZE - message_struct_size;
     }
 
-    if (send(socket, (const void*)this, message_struct_size, 0) == -1) {
+    if (::send(socket, (const void*)this, message_struct_size, 0) == -1) {
         return send_error;
     }
 
     return no_error;
 }
 
-PacketError KermitPacket::receiveMessage(int socket) {
+PacketError KermitPacket::receivePacket(int socket) {
     int ret = recv(socket, this, sizeof(*this), 0);
 
     if (ret == -1) {
@@ -68,72 +69,137 @@ PacketError KermitPacket::receiveMessage(int socket) {
 //
 // - if the message type doesn't involve data (eg. ack/nack), then the
 // parameter data and data size are ignored
-PacketError KermitPacket::sendAndWait(int socket, PacketType type,
-                                        int sequence, const char* data,
-                                        unsigned int data_size) {
-    *this = (KermitPacket){
-        .header =
-            {
-                .init_marker = KERMIT_INIT_MARKER,
-                .size = (unsigned char)data_size,
-                .sequence = (unsigned char)sequence,  // TODO: handle this later
-                .type = type,
-            },
-        .data = {0},
-    };
+PacketError KermitPacket::send(int socket, PacketType type, const char* data,
+                               unsigned int data_size) {
+    unsigned int offset = 0;  // position on the data buffer in bytes
+    int sequence = 0;
 
-    PacketError ret = this->writeData(data, data_size);
-    if (ret != no_error) {
-        return ret;
-    }
-    this->setCRC();
+    while (offset < data_size) {
+        unsigned int distance_to_end =
+            std::abs((long int)data_size - (long int)offset);
 
-    while (true) {
-        switch (this->sendMessage(socket)) {
-            case PacketError::send_error:
+        int size;
+        if (data_size - offset < BUFFER_SIZE) {
+            size = data_size - offset;
+        } else {
+            size = BUFFER_SIZE -
+                   ((distance_to_end < BUFFER_SIZE) *
+                    (distance_to_end - BUFFER_SIZE)) -
+                   offset;
+        }
+
+        cerr << "data size: " << size << " ";
+        cerr.write(data + offset, size);
+        cerr << "\n";
+
+        KermitPacket packet = (KermitPacket){
+            .header =
+                {
+                    .init_marker = KERMIT_INIT_MARKER,
+                    .size = (unsigned char)size,
+                    .sequence = (unsigned char)sequence,  // TODO: handle this later
+                    .type = type,
+                },
+            .data = {0},
+        };
+
+        PacketError ret = packet.writeData(data + offset, size);
+
+        if (ret != no_error) {
+            cerr << "error when writing data to buffer\n";
+            return ret;
+        }
+
+        packet.setCRC();
+
+        while (true) {
+            int ret = packet.sendPacket(socket);
+            if (ret == send_error) {
                 cerr << "error when sending message\n";
                 continue;
-
-            case PacketError::no_error:
-                break;
-        }
-        time_t timestamp = time(NULL);
-
-        // - if we receive a timeout, then there are no messages from the
-        // socket (we try to send a message again;
-        // int counter = 0;
-        while (true) {
-            cerr << "trying to receive message\n";
-            ret = this->receiveMessage(socket);
-            if (ret == recv_timeout) {
-                cerr << "timed out on recv, trying to send message again\n";
-                this->header.type = error;  //? Nao entendi pq mudamos o
-                                            // tipo para error - ULISSES
-                break;
-
             } else if (ret == no_error) {
-                cerr << "received a kermit message\n";
+                break;
+            }
+
+            // switch (packet.sendPacket(socket)) {
+            //     case PacketError::send_error:
+            //         cerr << "error when sending message\n";
+            //         continue; // on the loop
+            //
+            //     case PacketError::no_error:
+            //         break; // from the switch
+            // }
+            time_t timestamp = time(NULL);
+
+            // - if we receive a timeout, then there are no messages from the
+            // socket (we try to send a message again;
+            // int counter = 0;
+            KermitPacket response;
+            while (true) {
+                cerr << "trying to receive message\n";
+                ret = response.receivePacket(socket);
+                if (ret == recv_timeout) {
+                    cerr << "timed out on recv, trying to send message again\n";
+                    response.header.type = error;  //? Nao entendi pq mudamos o
+                                                   // tipo para error - ULISSES
+                    break;
+
+                } else if (ret == no_error) {
+                    cerr << "received a kermit message\n";
+                    break;
+
+                } else {
+                    // if we don't receive a valid message in 2 seconds, then we
+                    // send send again
+                    if (difftime(time(NULL), timestamp) > 8) {
+                        cerr << "timed out on receiving kermit messages, "
+                                "trying to send message again\n";
+                        response.header.type =
+                            error;  //? Nao entendi pq mudamos o
+                                    // tipo para error - ULISSES
+                        break;
+                    }
+                }
+            }
+
+            if (response.header.type == ack) {
+                cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
                 break;
 
-            } else {
-                // if we don't receive a valid message in 2 seconds, then we
-                // send send again
-                if (difftime(time(NULL), timestamp) > 8) {
-                    cerr << "timed out on receiving kermit messages, "
-                            "trying to send message again\n";
-                    this->header.type = error;  //? Nao entendi pq mudamos o
-                                                // tipo para error - ULISSES
-                    break;
-                }
+            } else if (response.header.type == nack) {
+                cerr << FONT_RED "received NACK\n" FONT_NORMAL;
             }
         }
 
-        if (this->header.type == ack) {
-            cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
-            return no_error;
+        sequence = (sequence + 1) % 8; // 8 because sequence field has 3 bits
+        offset += size;
+    }
 
-        } else if (this->header.type == nack) {
-            cerr << FONT_RED "received NACK\n" FONT_NORMAL;
+    return no_error;
+}
+
+PacketError KermitPacket::confirmSend(int socket) {
+    KermitPacket end_message = {
+        .header =
+            {
+                .init_marker = KERMIT_INIT_MARKER,
+                .size = 5,
+                .sequence = 0,
+            },
+        .data = {0},
+    };
+    end_message.setCRC();
+
+    while (true) {
+        KermitPacket response;
+
+        PacketError ret = response.receivePacket(socket);
+
+        if (ret == PacketError::no_error) {
+            if (response.header.type == ack) {
+                break;
+            }
+            continue;
         }
     }
 
