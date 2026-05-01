@@ -33,6 +33,7 @@ enum PacketType {
     walk_down = 13,
     error = 15,
     end_transmission = 16,
+    finalize = 17,
 };
 typedef enum PacketType PacketType;
 
