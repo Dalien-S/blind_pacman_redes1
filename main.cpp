@@ -12,9 +12,13 @@
 using std::cerr;
 using std::cout;
 
-const char* messages[] = {
-    "pang",       "\tpeng",       "\t\tping",
-    "\t\t\tpong", "\t\t\t\tpung", "ESSA MENSAGEM É PRA SER BEM MAIOR AGORA"};
+const char* messages[] = {"pang",
+                          "\tpeng",
+                          "\t\tping",
+                          "\t\t\tpong",
+                          "\t\t\t\tpung",
+                          "ESSA MENSAGEM É PRA SER BEM MAIOR AGORA "
+                          "INFINITAMENTE MAIOR DO QUE TODAS AS OUTRAS AGORA"};
 
 int runServer(int socket) {
     unsigned int count = 0;
@@ -42,7 +46,7 @@ int runServer(int socket) {
 
 /*
 int runClient(int socket) {
-    unsigned char sequence = 0;
+    // unsigned char sequence = 0;
     while (true) {
         KermitPacket message;
 

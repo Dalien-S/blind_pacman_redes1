@@ -121,19 +121,10 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
                 break;
             }*/
 
-            // switch (packet.sendPacket(socket)) {
-            //     case PacketError::send_error:
-            //         cerr << "error when sending message\n";
-            //         continue; // on the loop
-            //
-            //     case PacketError::no_error:
-            //         break; // from the switch
-            // }
             time_t timestamp = time(NULL);
 
             // - if we receive a timeout, then there are no messages from the
             // socket (we try to send a message again;
-            // int counter = 0;
             KermitPacket response;
             while (true) {
                 ret = response.receivePacket(socket);
@@ -182,6 +173,7 @@ PacketError KermitPacket::confirmSend(int socket) {
                 .init_marker = KERMIT_INIT_MARKER,
                 .size = 5,
                 .sequence = 0,
+                .type = PacketType::finalize,
             },
         .data = {0},
     };
