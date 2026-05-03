@@ -9,14 +9,14 @@
     - [ ] *ACK/NACK*
         - [x] parece funcionar
         - [ ] testes feitos
-    - [ ] Verificar o *CRC do pacote*
-        - [ ] Implementar o *algoritmo de CRC*
+    - [x] Verificar o *CRC do pacote*
+        - [x] Implementar o *algoritmo de CRC*
             - [x] parece funcionar
-            - [ ] testes feitos
-        - [ ] parece funcionar
+            - [x] testes feitos
+        - [x] parece funcionar
         - [ ] testes feitos
-    - [ ] *timeout*
-        - [ ] parece funcionar
+    - [x] *timeout*
+        - [x] parece funcionar
         - [ ] testes feitos
     - [ ] *sincrinização entre emissor e receptor*
     - [ ] *Sequência*

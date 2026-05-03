@@ -60,6 +60,9 @@ PacketError KermitPacket::receivePacket(int socket) {
         return wrong_init_marker;
     }
 
+    if (checkCRC() == false){
+        return wrong_crc;}
+
     return no_error;
 }
 
@@ -112,9 +115,11 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
             if (ret == send_error) {
                 cerr << "error when sending message\n";
                 continue;
-            } else if (ret == no_error) {
-                break;
             }
+            // No need to break for no error go to receive ack
+            /*else if (ret == no_error) {
+                break;
+            }*/
 
             // switch (packet.sendPacket(socket)) {
             //     case PacketError::send_error:
@@ -131,38 +136,34 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
             // int counter = 0;
             KermitPacket response;
             while (true) {
-                cerr << "trying to receive message\n";
                 ret = response.receivePacket(socket);
                 if (ret == recv_timeout) {
                     cerr << "timed out on recv, trying to send message again\n";
-                    response.header.type = error;  //? Nao entendi pq mudamos o
-                                                   // tipo para error - ULISSES
                     break;
-
                 } else if (ret == no_error) {
                     cerr << "received a kermit message\n";
                     break;
 
                 } else {
                     // if we don't receive a valid message in 2 seconds, then we
-                    // send send again
+                    // send again
                     if (difftime(time(NULL), timestamp) > 8) {
                         cerr << "timed out on receiving kermit messages, "
                                 "trying to send message again\n";
-                        response.header.type =
-                            error;  //? Nao entendi pq mudamos o
-                                    // tipo para error - ULISSES
                         break;
                     }
                 }
             }
 
-            if (response.header.type == ack) {
-                cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
-                break;
+            if (ret == no_error)
+            {
+                if (response.header.type == ack) {
+                    cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
+                    break;
 
-            } else if (response.header.type == nack) {
-                cerr << FONT_RED "received NACK\n" FONT_NORMAL;
+                } else if (response.header.type == nack) {
+                    cerr << FONT_RED "received NACK\n" FONT_NORMAL;
+                }
             }
         }
 
@@ -174,6 +175,7 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
 }
 
 PacketError KermitPacket::confirmSend(int socket) {
+    /*
     KermitPacket end_message = {
         .header =
             {
@@ -184,7 +186,7 @@ PacketError KermitPacket::confirmSend(int socket) {
         .data = {0},
     };
     end_message.setCRC();
-
+    */
     while (true) {
         KermitPacket response;
 
@@ -199,6 +201,110 @@ PacketError KermitPacket::confirmSend(int socket) {
     }
 
     return no_error;
+}
+
+PacketType KermitPacket::receive(int socket, std::vector<char> *buffer) { 
+    KermitPacket packet;
+
+    // Resposta pronta ack
+    KermitPacket response_ack = (KermitPacket){
+        .header =
+            {
+                .init_marker = KERMIT_INIT_MARKER,
+                .size = 0,
+                .sequence = 0,         
+                .type = ack,               
+            },
+        
+        .data = {0},
+    };
+    response_ack.calculateCRC(false, response_ack.data);
+
+    // resposta pronta nack
+    KermitPacket response_nack = (KermitPacket){
+        .header =
+            {
+                .init_marker = KERMIT_INIT_MARKER,
+                .size = 0,
+                .sequence = 0,         
+                .type = nack,               
+            },
+        
+        .data = {0},
+    };
+    response_nack.calculateCRC(false, response_nack.data);
+
+    int ret;
+    int sequence = 0;
+
+    PacketType message_type;
+
+    while (true) {
+        ret = packet.receivePacket(socket);
+
+        if (ret == PacketError::no_error) {
+            if (packet.header.type == initialize)
+                response_ack.sendPacket(socket);
+            else
+                break;
+        }
+        else if (ret == wrong_crc)
+            response_nack.sendPacket(socket);
+        else
+            continue;
+    }
+    
+    cerr << "Sequence " << sequence << "Received";
+    cerr << "Inserting Data to Buffer\n";
+    buffer -> insert(buffer->end(), packet.data, packet.data + packet.header.size);
+    response_ack.sendPacket(socket);
+    message_type = packet.header.type;
+
+    while (true)
+    {
+        int ret = packet.receivePacket(socket);
+
+        if (ret == no_error)
+        {
+            // Received end transmission
+            if (packet.header.type == end_transmission) {   
+                cerr << "END TRANSMISSION\n";
+                break;
+            }
+            // Wrong Type of Message 
+            else if (packet.header.type != message_type) {
+                cerr << "Wrong Type\n";
+                response_nack.sendPacket(socket);
+            } 
+            // Next Sequential Message
+            else if (packet.header.sequence == sequence + 1) {
+                cerr << "Sequence " << sequence << "Received";
+                cerr << "Inserting Data to Buffer\n";
+                buffer -> insert(buffer->end(), packet.data, packet.data + packet.header.size);
+                sequence++;
+                response_ack.sendPacket(socket);
+            } 
+            // Wrong Sequential Message 
+            else if (packet.header.sequence < sequence) {
+                cerr << "Wrong Sequence\n";
+                response_nack.sendPacket(socket);
+            } 
+            // Same message
+            else {
+                cerr << "Sequence " << sequence << "Received";
+                response_ack.sendPacket(socket);
+            }
+
+        } 
+        // Wrong CRC Invalid Message
+        else if (ret == wrong_crc){
+            cerr << "Wrong CRC\n";
+            response_nack.sendPacket(socket);
+        } else 
+            continue;
+    }
+
+    return message_type;
 }
 
 // requires message to be fully written excluding CRC

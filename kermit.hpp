@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <vector>
 
 #define KERMIT_INIT_MARKER 0b01111110
 
@@ -45,6 +46,7 @@ typedef enum {
     recv_timeout,
     wrong_init_marker,
     no_error,
+    wrong_crc,
 } PacketError;
 
 // message that follows the kermit protocol
@@ -74,6 +76,7 @@ struct KermitPacket {
     PacketError send(int socket, PacketType type, const char* data,
                      unsigned int data_size);
     PacketError confirmSend(int socket);
+    PacketType receive(int socket, std::vector<char> *buffer);
     // requires message to be fully written excluding CRC
     PacketError calculateCRC(bool is_check, char* crc_return);
     void setCRC();

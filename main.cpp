@@ -1,6 +1,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
 
 #include <iostream>
 
@@ -39,6 +40,7 @@ int runServer(int socket) {
     return 0;
 }
 
+/*
 int runClient(int socket) {
     unsigned char sequence = 0;
     while (true) {
@@ -93,7 +95,81 @@ int runClient(int socket) {
         }
     }
 }
+*/
 
+int main(int argc, char* argv[]) {
+    
+    if (argc != 2) {
+        cout << "Usage: <program> --client|--user\n";
+        exit(1);
+    }
+
+    cout << "Hello :)\n";
+    
+    int socket = cria_raw_socket((char*)"enp5s0");
+    if (socket == -1) {
+        cerr << "Error when creating socket" << "\n";
+        exit(1);
+    }
+    cerr << "Created socket with file descriptor: " << socket << "\n";
+
+    // setting a timeout for the socket
+    const int timeoutMillis = TIMEOUT_MS;
+    struct timeval timeout = {
+        .tv_sec = timeoutMillis / 1000,
+        .tv_usec = (timeoutMillis % 1000) * 1000,
+    };
+
+    if (setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
+                   sizeof(timeout)) == -1) {
+        cout << "error on setsockopt for timeout\n";
+        exit(1);
+    }
+    int mode;
+
+    if (strcmp(argv[1], "--server") == 0) {
+        mode = 0;
+    } else if (strcmp(argv[1], "--client") == 0) {
+        mode = 1;
+    } else {
+        cout << "unrecognized option";
+        return 0;
+    }
+
+    // Teste de envio alternando entre cliente e servidor
+    for (int i = 0; i < 6; i++)
+    {
+        if (mode == 0) {
+            cerr << "\n\n\nI am Server Now\n";
+            KermitPacket message;
+            message.send(socket, PacketType::initialize, {0}, 0);
+            const char* data = messages[i];
+            message.send(socket, PacketType::data, data, strlen(data));
+            cerr << "message: " << i << "\n";
+            message.header.type = end_transmission;
+            message.header.size = 0;
+            message.data[0] = {0};
+            message.calculateCRC(false, message.data);
+            message.sendPacket(socket);
+            mode = 1;
+        }
+
+        else if (mode == 1) {
+            cerr << "\n\n\nI am Client Now\n";
+            std::vector<char> buffer;
+            KermitPacket aux;
+            aux.receive(socket, &buffer);
+            cerr << "Received end transmission\n";
+            cerr << "\tMessage " << i << " Obtained: ";
+            for (char a : buffer)
+                cerr << a;
+            cerr << "\n";
+            mode = 0;
+        }
+    }
+}
+
+/*
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         cout << "Usage: <program> --client|--user\n";
@@ -138,3 +214,4 @@ int main(int argc, char* argv[]) {
     close(socket);
     return 0;
 }
+*/

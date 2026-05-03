@@ -12,5 +12,5 @@ all: compile
 compile: $(SRC) $(LIB)
 	$(CC) $(FLAGS) -c $(SRC) $(MAIN)
 
-clean: 
+clean purge: 
 	rm -f $(OBJ) $(TARGET)
