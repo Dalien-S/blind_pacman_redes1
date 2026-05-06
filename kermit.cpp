@@ -197,16 +197,14 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
             if (ret == no_error) {
                 if (response.header.type == ack) {
                     cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
-                    break;
-
+                    sequence = (sequence + 1) % 64;  // 8 because sequence field has 6 bits
+                    offset += size;
                 } else if (response.header.type == nack) {
                     cerr << FONT_RED "received NACK\n" FONT_NORMAL;
                 }
+                break;
             }
         }
-
-        sequence = (sequence + 1) % 64;  // 8 because sequence field has 6 bits
-        offset += size;
     }
     cerr << "entire message sent, exiting send()\n";
 

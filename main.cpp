@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
 
     cout << "Hello :)\n";
 
-    int socket = cria_raw_socket((char*)"enp3s0");
+    int socket = cria_raw_socket((char*)"enp2s0");
     if (socket == -1) {
         cerr << "Error when creating socket" << "\n";
         exit(1);
@@ -135,7 +135,8 @@ int main(int argc, char* argv[]) {
     int mode;
 
     if (strcmp(argv[1], "--server") == 0) {
-        const char* file_name = "bee_movie.txt";
+        // const char* file_name = "bee_movie.txt";
+        const char* file_name = "kermit.jpg";
         // opening a file for sending
         std::ifstream file(file_name, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
@@ -157,7 +158,7 @@ int main(int argc, char* argv[]) {
         file.close();
 
         KermitPacket sent_file;
-        sent_file.send(socket, txt, file_name, strlen(file_name));
+        sent_file.send(socket, jpg, file_name, strlen(file_name));
         sent_file.confirmSend(socket);
 
         cerr << FONT_RED "RECEIVING DUMMY MESSAGE\n" FONT_NORMAL;
