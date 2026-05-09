@@ -7,7 +7,8 @@
 #include <vector>
 
 #include "kermit.hpp"
-#include "macros.hpp"
+// #include "macros.hpp"
+#include "logging.hpp"
 #include "raw_sockets.hpp"
 
 using std::cerr;
@@ -137,6 +138,7 @@ int main(int argc, char* argv[]) {
     if (strcmp(argv[1], "--server") == 0) {
         // const char* file_name = "bee_movie.txt";
         const char* file_name = "kermit.jpg";
+        // const char* file_name = "rickroll.mp4";
         // opening a file for sending
         std::ifstream file(file_name, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
@@ -161,10 +163,10 @@ int main(int argc, char* argv[]) {
         sent_file.send(socket, jpg, file_name, strlen(file_name));
         sent_file.confirmSend(socket);
 
-        cerr << FONT_RED "RECEIVING DUMMY MESSAGE\n" FONT_NORMAL;
+        cerr << color::red << "RECEIVING DUMMY MESSAGE\n" << color::normal;
         std::vector<char> dummy;
         sent_file.receive(socket, &dummy);
-        cerr << FONT_RED "RECEIVED DUMMY MESSAGE\n" FONT_NORMAL;
+        cerr << color::red << "RECEIVED DUMMY MESSAGE\n" << color::normal;
 
         sent_file.send(socket, data, buffer, size);
         sent_file.confirmSend(socket);
@@ -202,10 +204,10 @@ int main(int argc, char* argv[]) {
         }
 
         // sending dummy message
-        cerr << FONT_RED "SENDING DUMMY MESSAGE\n" FONT_NORMAL;
+        cerr << color::red << "SENDING DUMMY MESSAGE\n" << color::normal;
         received_file.send(socket, data, title.data(), 0);
         received_file.confirmSend(socket);
-        cerr << FONT_RED "SENT DUMMY MESSAGE\n" FONT_NORMAL;
+        cerr << color::red << "SENT DUMMY MESSAGE\n" << color::normal;
 
         std::vector<char> movie;
         type = received_file.receive(socket, &movie);
