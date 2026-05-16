@@ -7,6 +7,8 @@
 #include <iostream>
 #include <vector>
 
+#include "logging.hpp"
+
 #define KERMIT_INIT_MARKER 0b01111110
 
 #define TIMEOUT_MS 3000  // 3 seconds for timeout
@@ -18,6 +20,10 @@
 
 using std::cerr;
 using std::cout;
+
+// sets the logger for the kermit instance
+void setKermitLogger(const char* file_path);
+void unsetKermitLogger();
 
 enum PacketType {
     ack = 0,

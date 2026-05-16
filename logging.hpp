@@ -27,7 +27,12 @@ extern const char* back_white;
 
 struct Logger {
     FILE* output_file = stderr;
-    bool colors = false;
+
+    // Logger();
+    // Logger(const char* file_path);
+    // ~Logger();
+    static Logger initLogger(const char* file_path);
+    static void terminateLogger(Logger* logger);
 
     void print(const char* fmt, ...);
     void printColor(const char* color, const char* fmt, ...);

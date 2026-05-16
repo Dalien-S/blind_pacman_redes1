@@ -136,6 +136,7 @@ int main(int argc, char* argv[]) {
     int mode;
 
     if (strcmp(argv[1], "--server") == 0) {
+        setKermitLogger("server.log");
         // const char* file_name = "bee_movie.txt";
         const char* file_name = "kermit.jpg";
         // const char* file_name = "rickroll.mp4";
@@ -171,7 +172,9 @@ int main(int argc, char* argv[]) {
         sent_file.send(socket, data, buffer, size);
         sent_file.confirmSend(socket);
 
+        unsetKermitLogger();
     } else if (strcmp(argv[1], "--client") == 0) {
+        setKermitLogger("client.log");
         std::ofstream f;
         std::vector<char> title;
         KermitPacket received_file;
@@ -218,6 +221,7 @@ int main(int argc, char* argv[]) {
         }
 
         f.close();
+        unsetKermitLogger();
     } else {
         cout << "unrecognized option";
         return 0;

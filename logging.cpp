@@ -22,6 +22,40 @@ const char* back_cyan = "\x1B[46m";
 const char* back_white = "\x1B[47m";
 }  // namespace color
 
+// Logger::Logger() {};
+// Logger::Logger(const char* file_path) {
+//     this->output_file = fopen(file_path, "w");
+//     if (!this->output_file) {
+//         fprintf(stderr, "error when opening log file (%s)\n", file_path);
+//         this->output_file = stderr;
+//     }
+// };
+//
+// Logger::~Logger() {
+//     if (this->output_file != stderr) fclose(this->output_file);
+// }
+Logger Logger::initLogger(const char* file_path) {
+    Logger logger = (Logger){.output_file = stderr};
+
+    if (file_path) {
+        logger.output_file = fopen(file_path, "w");
+        if (!logger.output_file) {
+            fprintf(stderr, "error when opening log file (%s)\n", file_path);
+            logger.output_file = stderr;
+        }
+    }
+
+    return logger;
+}
+
+void Logger::terminateLogger(Logger* logger){
+    if (!logger) return;
+    if (!logger->output_file) return;
+    if (logger->output_file == stderr) return;
+    fclose(logger->output_file);
+    logger->output_file = NULL;
+}
+
 void Logger::print(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
