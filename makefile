@@ -1,16 +1,17 @@
 CC = g++
 FLAGS = -std=c++17 -Wall -Wextra #-Wno-missing-field-initializers
-LIB = raw_sockets.hpp kermit.hpp pacman.hpp
-SRC = raw_sockets.cpp kermit.cpp pacman.cpp
+LIB = raw_sockets.hpp kermit.hpp pacman.hpp logging.hpp
+SRC = raw_sockets.cpp kermit.cpp pacman.cpp logging.cpp
 MAIN = main.cpp
-OBJ = main.o raw_sockets.o kermit.o pacman.o
+OBJ = main.o raw_sockets.o kermit.o pacman.o logging.o
+
 TARGET = blind_pacman
 
 all: compile
 	$(CC) $(OBJ) -o $(TARGET)
 
 pacman:
-	$(CC) pacmanTest.cpp pacman.cpp -o pacmanTest 
+	$(CC) pacmanTest.cpp pacman.cpp logging.cpp -o pacmanTest 
 
 compile: $(SRC) $(LIB)
 	$(CC) $(FLAGS) -c $(SRC) $(MAIN)
