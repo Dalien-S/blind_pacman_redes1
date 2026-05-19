@@ -1,9 +1,9 @@
 CC = g++
 FLAGS = -std=c++17 -Wall -Wextra #-Wno-missing-field-initializers
-LIB = raw_sockets.hpp kermit.hpp
-SRC = raw_sockets.cpp kermit.cpp
+LIB = raw_sockets.hpp kermit.hpp logging.hpp
+SRC = raw_sockets.cpp kermit.cpp logging.cpp
 MAIN = main.cpp
-OBJ = main.o raw_sockets.o kermit.o
+OBJ = main.o raw_sockets.o kermit.o logging.o
 TARGET = blind_pacman
 
 all: compile

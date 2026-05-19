@@ -4,9 +4,33 @@
 
 #include <bitset>
 #include <ctime>
+
+#include "logging.hpp"
 // #include <cstdlib>
 
-#include "macros.hpp"
+// #include "macros.hpp"
+
+
+Logger kermit_logger;
+
+void setKermitLogger(const char* file_path) {
+    kermit_logger = Logger::initLogger(file_path);
+}
+
+void unsetKermitLogger() {
+    Logger::terminateLogger(&kermit_logger);
+}
+
+KermitPacket::KermitPacket() {}
+KermitPacket::KermitPacket(PacketType type, unsigned char sequence) {
+    this->header = {
+        .init_marker = KERMIT_INIT_MARKER,
+        .size = 0,
+        .sequence = sequence,
+        .type = type,
+    };
+    memset(this->data, 0, BUFFER_SIZE + 1);
+}
 
 // TODO: this function needs to calculate(and set) the CRC too
 PacketError KermitPacket::writeData(const char* data, int data_size) {
@@ -19,6 +43,7 @@ PacketError KermitPacket::writeData(const char* data, int data_size) {
     }
 
     memcpy(this->data, data, data_size);
+    this->header.size = data_size;
 
     return no_error;
 }
@@ -28,14 +53,25 @@ int KermitPacket::sendPacket(int socket) {
         sizeof(this->header) + this->header.size + 1;
 
     // just so there's no problem with the size of the message
-    char frame[message_struct_size + MINIMUM_PACKET_SIZE];
+    char frame[2 * sizeof(*this)];
+    char struct_copy[message_struct_size];
+    memset(frame, 0, message_struct_size + MINIMUM_PACKET_SIZE);
 
-    memcpy(frame, this, message_struct_size);
-    if (message_struct_size < MINIMUM_PACKET_SIZE) {
-        message_struct_size += MINIMUM_PACKET_SIZE - message_struct_size;
+    memcpy(struct_copy, this, message_struct_size);
+    unsigned long written_bytes = 0;
+    for (unsigned long i = 0; i < message_struct_size; i++) {
+        frame[written_bytes] = struct_copy[i];
+        if (struct_copy[i] == (char)0x88 || struct_copy[i] == (char)0x81) {
+            written_bytes++;
+            frame[written_bytes] = (char)0xff;
+        }
+        written_bytes++;
+    }
+    if (written_bytes < MINIMUM_PACKET_SIZE) {
+        written_bytes = MINIMUM_PACKET_SIZE;
     }
 
-    if (::send(socket, (const void*)this, message_struct_size, 0) == -1) {
+    if (::send(socket, (const void*)frame, written_bytes, 0) == -1) {
         return send_error;
     }
 
@@ -43,7 +79,9 @@ int KermitPacket::sendPacket(int socket) {
 }
 
 PacketError KermitPacket::receivePacket(int socket) {
-    int ret = recv(socket, this, sizeof(*this), 0);
+    // int max_received_size = 2 * sizeof(*this);
+    char buffer[2 * sizeof(*this)];
+    int ret = recv(socket, buffer, 2 * sizeof(*this), 0);
 
     if (ret == -1) {
         if (errno == ETIMEDOUT) {
@@ -52,7 +90,16 @@ PacketError KermitPacket::receivePacket(int socket) {
         return recv_other_error;
     }
 
-    if (ret < (int)sizeof(this->header) + 1) {
+    int written_bytes = 0;
+    for (int i = 0; i < ret && written_bytes < (int)sizeof(*this); i++) {
+        ((unsigned char*)this)[written_bytes] = buffer[i];
+        if (buffer[i] == (char)0x88 || buffer[i] == (char)0x81) {
+            i++;
+        }
+        written_bytes++;
+    }
+
+    if (written_bytes < (int)sizeof(this->header) + 1) {
         return message_received_too_small;
     }
 
@@ -60,8 +107,11 @@ PacketError KermitPacket::receivePacket(int socket) {
         return wrong_init_marker;
     }
 
-    if (checkCRC() == false){
-        return wrong_crc;}
+    this->printData();
+
+    if (checkCRC() == false) {
+        return wrong_crc;
+    }
 
     return no_error;
 }
@@ -74,8 +124,61 @@ PacketError KermitPacket::receivePacket(int socket) {
 // parameter data and data size are ignored
 PacketError KermitPacket::send(int socket, PacketType type, const char* data,
                                unsigned int data_size) {
-    unsigned int offset = 0;  // position on the data buffer in bytes
+    kermit_logger.print((char*)"entered send()\n");
+    // cerr << "entered send()\n";
+
     int sequence = 0;
+
+    KermitPacket init = KermitPacket(initialize, 0);
+    init.setCRC();
+    while (true) {
+        KermitPacket response;
+        int ret = init.sendPacket(socket);
+        if (ret == no_error) {
+            ret = response.receivePacket(socket);
+            if (ret == no_error) {
+                if (response.header.type == ack) {
+                    kermit_logger.print(
+                        "received ack for the starting packet\n");
+                    break;
+                } else {
+                    kermit_logger.print(
+                        "didn't receive ack for the starting packet\n");
+                }
+            } else {
+                kermit_logger.print(
+                    "didn't receive any response, trying again...\n");
+            }
+        }
+    }
+
+    if (data_size == 0) {
+        KermitPacket packet = KermitPacket(type, 0);
+        packet.setCRC();
+        while (true) {
+            KermitPacket response;
+            int ret = packet.sendPacket(socket);
+            if (ret == no_error) {
+                ret = response.receivePacket(socket);
+                if (ret == no_error) {
+                    if (response.header.type == ack) {
+                        break;
+                    } else {
+                        kermit_logger.print(
+                            "didn't receive ACK as response, trying "
+                            "again...\n");
+                    }
+                } else {
+                    kermit_logger.print(
+                        "didn't receive any response, trying again...\n");
+                }
+            }
+        }
+
+        return no_error;
+    }
+
+    unsigned int offset = 0;  // position on the data buffer in bytes
 
     while (offset < data_size) {
         unsigned int distance_to_end =
@@ -86,41 +189,27 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
             size = distance_to_end;
         }
 
-        cerr << "data size: " << size << " ";
-        cerr.write(data + offset, size);
-        cerr << "\n";
+        // cerr << "data size: " << size << " ";
+        // cerr.write(data + offset, size + 1);
+        // cerr << "\n";
 
-        KermitPacket packet = (KermitPacket){
-            .header =
-                {
-                    .init_marker = KERMIT_INIT_MARKER,
-                    .size = (unsigned char)size,
-                    .sequence = (unsigned char)sequence,  // TODO: handle this later
-                    .type = type,
-                },
-            .data = {0},
-        };
-
+        KermitPacket packet = KermitPacket(type, sequence);
         PacketError ret = packet.writeData(data + offset, size);
+        packet.setCRC();
 
         if (ret != no_error) {
-            cerr << "error when writing data to buffer\n";
+            kermit_logger.print((char*)"errror when writing data to buffer\n");
+            // cerr << "error when writing data to buffer\n";
             return ret;
         }
-
-        packet.setCRC();
 
         while (true) {
             int ret = packet.sendPacket(socket);
             if (ret == send_error) {
-                cerr << "error when sending message\n";
+                kermit_logger.print((char*)"error when sending message\n");
+                // cerr << "error when sending message\n";
                 continue;
             }
-            // No need to break for no error go to receive ack
-            /*else if (ret == no_error) {
-                break;
-            }*/
-
             time_t timestamp = time(NULL);
 
             // - if we receive a timeout, then there are no messages from the
@@ -129,56 +218,72 @@ PacketError KermitPacket::send(int socket, PacketType type, const char* data,
             while (true) {
                 ret = response.receivePacket(socket);
                 if (ret == recv_timeout) {
-                    cerr << "timed out on recv, trying to send message again\n";
+                    kermit_logger.print((
+                        char*)"timed out on recv, trying to send message "
+                              "again\n");
+                    // cerr << "timed out on recv, trying to send message
+                    // again\n";
                     break;
                 } else if (ret == no_error) {
-                    cerr << "received a kermit message\n";
+                    kermit_logger.print((char*)"received a kermit message\n");
+                    // cerr << "received a kermit message\n";
                     break;
 
                 } else {
                     // if we don't receive a valid message in 2 seconds, then we
                     // send again
                     if (difftime(time(NULL), timestamp) > 8) {
-                        cerr << "timed out on receiving kermit messages, "
-                                "trying to send message again\n";
+                        kermit_logger.print(
+                            "timed out on receiving kermit messages, "
+                            "trying to send message again\n");
+                        // cerr << "timed out on receiving kermit messages, "
+                        //         "trying to send message again\n";
                         break;
                     }
                 }
             }
 
-            if (ret == no_error)
-            {
+            if (ret == no_error) {
                 if (response.header.type == ack) {
-                    cerr << FONT_GREEN "recieved ACK\n" FONT_NORMAL;
-                    break;
-
+                    kermit_logger.printColor(color::green, "received ACK\n");
+                    sequence = (sequence + 1) %
+                               64;  // 8 because sequence field has 6 bits
+                    offset += size;
                 } else if (response.header.type == nack) {
-                    cerr << FONT_RED "received NACK\n" FONT_NORMAL;
+                    kermit_logger.printColor(color::red, "received NACK");
+                    // cerr << color::red << "received NACK\n" << color::normal;
                 }
+                break;
             }
         }
-
-        sequence = (sequence + 1) % 8; // 8 because sequence field has 3 bits
-        offset += size;
     }
+    kermit_logger.print("entire message sent, exiting send()\n");
+    // cerr << "entire message sent, exiting send()\n";
+
+    // KermitPacket end = KermitPacket(end_transmission, 0);
+    // end.setCRC();
+    // while (true) {
+    //     if (end.sendPacket(socket) == no_error) {
+    //         break;
+    //     }
+    // }
 
     return no_error;
 }
 
 PacketError KermitPacket::confirmSend(int socket) {
-    /*
-    KermitPacket end_message = {
-        .header =
-            {
-                .init_marker = KERMIT_INIT_MARKER,
-                .size = 5,
-                .sequence = 0,
-                .type = PacketType::finalize,
-            },
-        .data = {0},
-    };
-    end_message.setCRC();
-    */
+    kermit_logger.print("entering confirmSend()\n");
+    // cerr << "entering confirmSend()\n";
+    KermitPacket end = KermitPacket(end_transmission, 0);
+    end.setCRC();
+    while (true) {
+        kermit_logger.print("sending end_transmission\n");
+        // cerr << "sending end_transmission\n";
+        if (end.sendPacket(socket) == no_error) {
+            break;
+        }
+    }
+
     while (true) {
         KermitPacket response;
 
@@ -187,115 +292,141 @@ PacketError KermitPacket::confirmSend(int socket) {
         if (ret == PacketError::no_error) {
             if (response.header.type == ack) {
                 break;
+            } else if (response.header.type == nack) {
+                KermitPacket response_ack = KermitPacket(ack, 0);
+                response_ack.setCRC();
+                while (true) {
+                    kermit_logger.print("sending end_transmission\n");
+                    // cerr << "sending end_transmission\n";
+                    if (response_ack.sendPacket(socket) != no_error) break;
+                }
+                break;
             }
-            continue;
         }
     }
+    kermit_logger.print(
+        "successfully sent end_transmission, exiting confirmSend()\n");
+    // cerr << "successfully sent end_transmission exiting confirmSend()\n";
 
     return no_error;
 }
 
-PacketType KermitPacket::receive(int socket, std::vector<char> *buffer) { 
+PacketType KermitPacket::receive(int socket, std::vector<char>* buffer) {
+    kermit_logger.print("entering receive()\n");
+    // cerr << "entering receive()\n";
     KermitPacket packet;
 
     // Resposta pronta ack
-    KermitPacket response_ack = (KermitPacket){
-        .header =
-            {
-                .init_marker = KERMIT_INIT_MARKER,
-                .size = 0,
-                .sequence = 0,         
-                .type = ack,               
-            },
-        
-        .data = {0},
-    };
-    response_ack.calculateCRC(false, response_ack.data);
+    KermitPacket response_ack = KermitPacket(ack, 0);
+    response_ack.setCRC();
 
     // resposta pronta nack
-    KermitPacket response_nack = (KermitPacket){
-        .header =
-            {
-                .init_marker = KERMIT_INIT_MARKER,
-                .size = 0,
-                .sequence = 0,         
-                .type = nack,               
-            },
-        
-        .data = {0},
-    };
-    response_nack.calculateCRC(false, response_nack.data);
+    KermitPacket response_nack = KermitPacket(nack, 0);
+    response_nack.setCRC();
 
     int ret;
     int sequence = 0;
 
     PacketType message_type;
 
+    bool received_initialize = false;
     while (true) {
         ret = packet.receivePacket(socket);
 
         if (ret == PacketError::no_error) {
-            if (packet.header.type == initialize)
+            if (packet.header.type == initialize) {
+                kermit_logger.printColor(color::cyan, "received initialize\n");
+                // cerr << color::cyan << "received initialize\n" <<
+                // color::normal;
                 response_ack.sendPacket(socket);
-            else
+                received_initialize = true;
+            } else if (received_initialize) {
                 break;
-        }
-        else if (ret == wrong_crc)
+            }
+        } else if (ret == wrong_crc) {
             response_nack.sendPacket(socket);
-        else
+        } else {
             continue;
+        }
     }
-    
-    cerr << "Sequence " << sequence << "Received";
-    cerr << "Inserting Data to Buffer\n";
-    buffer -> insert(buffer->end(), packet.data, packet.data + packet.header.size);
+
+    kermit_logger.printColor(color::cyan, "Sequence (%d) received", sequence);
+    // cerr << "Sequence " << sequence << " Received, ";
+    kermit_logger.print("Inserting data to buffer\n");
+    // cerr << "Inserting Data to Buffer\n";
+    buffer->insert(buffer->end(), packet.data,
+                   packet.data + packet.header.size);
     response_ack.sendPacket(socket);
     message_type = packet.header.type;
 
-    while (true)
-    {
+    while (true) {
         int ret = packet.receivePacket(socket);
 
-        if (ret == no_error)
-        {
+        if (ret == no_error) {
             // Received end transmission
-            if (packet.header.type == end_transmission) {   
-                cerr << "END TRANSMISSION\n";
+            if (packet.header.type == end_transmission) {
+                kermit_logger.printColor(color::blue, "END TRANSMISSION\n");
+                // cerr << color::blue << "END TRANSMISSION\n" << color::normal;
+                response_ack.sendPacket(socket);
                 break;
             }
-            // Wrong Type of Message 
+            // Wrong Type of Message
             else if (packet.header.type != message_type) {
-                cerr << "Wrong Type\n";
+                kermit_logger.printColor(color::blue, "Wrong type\n");
+                // cerr << color::blue << "Wrong Type\n" << color::normal;
                 response_nack.sendPacket(socket);
-            } 
+            }
             // Next Sequential Message
-            else if (packet.header.sequence == sequence + 1) {
-                cerr << "Sequence " << sequence << "Received";
-                cerr << "Inserting Data to Buffer\n";
-                buffer -> insert(buffer->end(), packet.data, packet.data + packet.header.size);
-                sequence++;
+            else if (packet.header.sequence == (sequence + 1) % 64) {
+                sequence = (sequence + 1) % 64;
+                kermit_logger.printColor(
+                    color::blue, "RECEIVED NEXT SEQUENCE (%d)\n", sequence);
+                // cerr << color::blue << "RECEIVED NEXT SEQUENCE\n"
+                //      << color::normal;
+                // cerr << "Sequence " << sequence << " Received, ";
+                // cerr << "Inserting Data to Buffer\n";
+                kermit_logger.print("Inserting data to buffer\n");
+                buffer->insert(buffer->end(), packet.data,
+                               packet.data + packet.header.size);
                 response_ack.sendPacket(socket);
-            } 
-            // Wrong Sequential Message 
+            }
+            // Wrong Sequential Message
             else if (packet.header.sequence < sequence) {
-                cerr << "Wrong Sequence\n";
+                kermit_logger.printColor(
+                    color::blue,
+                    "WRONG SEQUENCE: expected (%d), but got (%d)\n", sequence,
+                    (unsigned char)packet.header.sequence);
+                // cerr << color::blue << "WRONG SEQUENCE: expected (" <<
+                // sequence
+                //      << ") but got (" << (unsigned
+                //      char)packet.header.sequence
+                //      << ")\n"
+                //      << color::normal;
                 response_nack.sendPacket(socket);
-            } 
+            }
             // Same message
             else {
-                cerr << "Sequence " << sequence << "Received";
+                kermit_logger.printColor(color::blue,
+                                         "RECEIVED SAME MESSAGE\n");
+                kermit_logger.print("Sequence (%d) received\n", sequence);
+                // cerr << color::blue << "RECEIVED SAME MESSAGE\n"
+                //      << color::normal;
+                // cerr << "Sequence " << sequence << " Received, ";
                 response_ack.sendPacket(socket);
             }
 
-        } 
+        }
         // Wrong CRC Invalid Message
-        else if (ret == wrong_crc){
-            cerr << "Wrong CRC\n";
+        else if (ret == wrong_crc) {
+            kermit_logger.print("wrong crc\n");
+            // cerr << "Wrong CRC\n";
             response_nack.sendPacket(socket);
-        } else 
+        } else
             continue;
     }
 
+    kermit_logger.print("exiting receive()\n");
+    // cerr << "exiting receive()\n";
     return message_type;
 }
 
@@ -358,16 +489,25 @@ bool KermitPacket::checkCRC() {
 }
 
 void KermitPacket::printHeader() {
-    cerr << "init_marker: " << std::bitset<8>(this->header.init_marker) << "\n";
-    cerr << "size: " << (int)this->header.size << "\n";
-    cerr << "sequence: " << (int)this->header.sequence << "\n";
-    cerr << "type: " << (int)this->header.type << "\n";
-    // cerr << "crc: " << (int)this->crc << "\n";
+    kermit_logger.print("init_marker: %8b\n", this->header.init_marker);
+    // cerr << "init_marker: " << std::bitset<8>(this->header.init_marker) << "\n";
+    kermit_logger.print("size: %d\n", this->header.size);
+    // cerr << "size: " << (int)this->header.size << "\n";
+    kermit_logger.print("sequence: %d\n", this->header.sequence);
+    // cerr << "sequence: " << (int)this->header.sequence << "\n";
+    kermit_logger.print("type: %d\n", this->header.type);
+    // cerr << "type: " << (int)this->header.type << "\n";
 }
 
 void KermitPacket::printData() {
     // cerr << std::bitset<BUFFER_SIZE>(this->data) << "\n";
-    cerr << "(" FONT_RED;
-    cerr.write(this->data, this->header.size);
-    cerr << FONT_NORMAL ")\n";
+    // cerr << "(" << color::red;
+    // cerr << "(";
+    kermit_logger.print("(");
+    for (int i = 0; i < this->header.size; i++) {
+        kermit_logger.printColor(color::red, "%02x",
+                                 (unsigned char)this->data[i]);
+    }
+    kermit_logger.print(")\n");
+    // cerr << ")\n";
 }

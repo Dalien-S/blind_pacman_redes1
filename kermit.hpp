@@ -7,6 +7,8 @@
 #include <iostream>
 #include <vector>
 
+#include "logging.hpp"
+
 #define KERMIT_INIT_MARKER 0b01111110
 
 #define TIMEOUT_MS 3000  // 3 seconds for timeout
@@ -18,6 +20,10 @@
 
 using std::cerr;
 using std::cout;
+
+// sets the logger for the kermit instance
+void setKermitLogger(const char* file_path);
+void unsetKermitLogger();
 
 enum PacketType {
     ack = 0,
@@ -61,6 +67,9 @@ struct KermitPacket {
     char data[BUFFER_SIZE +
               1];  // data stores the message bytes and the crc right after;
                    // this buffer can store any message size from the protocol
+
+    KermitPacket();
+    KermitPacket(PacketType type, unsigned char sequence);
 
     // writes data to the message
     // TODO: this function needs to calculate the CRC too
