@@ -1,21 +1,20 @@
 #include "pacman.hpp"
 
+#include <string.h>
+
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <string.h>
 
+#include "macros.hpp"
 
 using std::cerr;
 
-int getRand(int min, int max) {
-    return (rand() % (max - min)) + min;
-}
+int getRand(int min, int max) { return (rand() % (max - min)) + min; }
 
 // Expects empty write spot on 11
 inline int checkElement(char element) {
-    switch (element)
-    {
+    switch (element) {
         case PACMAN:
             return 0;
         case RED:
@@ -41,7 +40,7 @@ inline int checkElement(char element) {
         default:
             return 11;
     }
-} 
+}
 
 // Grid -------------------------------------------------------------
 
@@ -51,9 +50,7 @@ Grid::Grid(int rows, int cols) {
     this->spots = new char[rows * cols];
 }
 
-Grid::~Grid() {
-    delete this->spots;
-}
+Grid::~Grid() { delete this->spots; }
 
 inline char* Grid::at(int row, int col) {
     return &this->spots[row + col * this->cols];
@@ -74,38 +71,32 @@ void Grid::readGrid(const char* filename) {
     // Use tellg on end to ger file size
     std::streamsize file_size = file.tellg();
     file.seekg(0, std::ios::beg);
-    if (file_size < this -> rows * this -> cols * 2)
-        return;
+    if (file_size < this->rows * this->cols * 2) return;
     char buffer[file_size];
-    file.read(buffer, file_size);    
+    file.read(buffer, file_size);
 
-    // Não Tenho certeza sobre esse pedaço, talvez remover e só considerar sem fim de linha no csv
-    if (file_size >= this -> rows * this -> cols * 2)
-    {
+    // Não Tenho certeza sobre esse pedaço, talvez remover e só considerar sem
+    // fim de linha no csv
+    if (file_size >= this->rows * this->cols * 2) {
         int gridWrite = 0;
         int i = 0;
-        
+
         // While not EOF
-        while(i < file_size)
-        {
+        while (i < file_size) {
             // Read a Row ignoring separators
-            for (; i < i + this -> rows * 2; i+=2)
-            {
-                this -> spots[gridWrite] = buffer[i];
+            for (; i < i + this->rows * 2; i += 2) {
+                this->spots[gridWrite] = buffer[i];
                 gridWrite++;
             }
             // Ignore \n
             i++;
         }
-    }
-    else
-    {
+    } else {
         int gridWrite = 0;
         int i = 0;
         // While not EOF
-        while(i < file_size)
-        {
-            this -> spots[gridWrite] = buffer[i];
+        while (i < file_size) {
+            this->spots[gridWrite] = buffer[i];
             gridWrite++;
             // Jump ','
             i += 2;
@@ -124,40 +115,34 @@ void Grid::readGrid(const char* filename, int defPositions[12]) {
     // Use tellg on end to ger file size
     std::streamsize file_size = file.tellg();
     file.seekg(0, std::ios::beg);
-    if (file_size < this -> rows * this -> cols * 2 - 1)
-        return;
-    
-    char buffer[file_size];
-    file.read(buffer, file_size);    
+    if (file_size < this->rows * this->cols * 2 - 1) return;
 
-    // Não Tenho certeza sobre esse pedaço, talvez remover e só considerar sem fim de linha no csv
-    if (file_size >= this -> rows * this -> cols * 2)
-    {
+    char buffer[file_size];
+    file.read(buffer, file_size);
+
+    // Não Tenho certeza sobre esse pedaço, talvez remover e só considerar sem
+    // fim de linha no csv
+    if (file_size >= this->rows * this->cols * 2) {
         int gridWrite = 0;
         int i = 0;
-        
+
         // While not EOF
-        while(i < file_size)
-        {
+        while (i < file_size) {
             // Read a Row ignoring separators
-            for (; i < i + this -> rows * 2; i+=2)
-            {
-                this -> spots[gridWrite] = buffer[i];
+            for (; i < i + this->rows * 2; i += 2) {
+                this->spots[gridWrite] = buffer[i];
                 defPositions[checkElement(buffer[i])] = gridWrite;
                 gridWrite++;
             }
             // Ignore \n
             i++;
         }
-    }
-    else
-    {
+    } else {
         int gridWrite = 0;
         int i = 0;
         // While not EOF
-        while(i < file_size)
-        {
-            this -> spots[gridWrite] = buffer[i];
+        while (i < file_size) {
+            this->spots[gridWrite] = buffer[i];
             defPositions[checkElement(buffer[i])] = gridWrite;
             gridWrite++;
             // Jump ','
@@ -198,9 +183,8 @@ Pacman::Pacman() {
 
 int Pacman::updatePacman(Grid* grid, DirectionType directionPacman) {
     int foundFile;
-    Vec2 nextPos = this -> position;
-    switch (directionPacman)
-    {
+    Vec2 nextPos = this->position;
+    switch (directionPacman) {
         case up:
             nextPos.x--;
             break;
@@ -216,17 +200,18 @@ int Pacman::updatePacman(Grid* grid, DirectionType directionPacman) {
         default:
             return -2;
     }
-    if (nextPos.x < 0 || nextPos.x >= grid->cols || nextPos.y < 0 || nextPos.y >= grid -> rows)
+    if (nextPos.x < 0 || nextPos.x >= grid->cols || nextPos.y < 0 ||
+        nextPos.y >= grid->rows)
         return -2;
-    
-    char nextSquare = *(grid -> at(nextPos));
-    
+
+    char nextSquare = *(grid->at(nextPos));
+
     // Game Over
-    if (nextSquare == RED || nextSquare == BLUE || nextSquare == GREEN || nextSquare == YELLOW)
+    if (nextSquare == RED || nextSquare == BLUE || nextSquare == GREEN ||
+        nextSquare == YELLOW)
         return -1;
-    
-    switch (nextSquare)
-    {
+
+    switch (nextSquare) {
         case WALL:
             // Decide if invalid input moves ghost or if only re-ask for input
             return -2;
@@ -254,11 +239,9 @@ int Pacman::updatePacman(Grid* grid, DirectionType directionPacman) {
             break;
     }
 
-    
-    *(grid -> at(this -> position)) = EMPTY;
-    this -> position = nextPos;
-    *(grid -> at(nextPos)) = PACMAN;
-    
+    *(grid->at(this->position)) = EMPTY;
+    this->position = nextPos;
+    *(grid->at(nextPos)) = PACMAN;
 
     return foundFile;
 }
@@ -309,8 +292,9 @@ int Ghost::updateRed(Grid* grid) {
         }
     } while (!valid_next_position);
 
+    *grid->at(this->position.y, this->position.x) = EMPTY;
     this->position = next_pos;
-    grid->at(this->position.y, this->position.x);
+    *grid->at(this->position.y, this->position.x) = this->type;
 
     return 0;
 };
@@ -403,7 +387,7 @@ int Ghost::updateYellow(Grid* grid) {
         };
         char next_spot = grid->spots[next_pos.x + next_pos.y * grid->cols];
 
-        if (next_spot != '#') {
+        if (next_spot == EMPTY) {
             valid_next_position = true;
         }
 
@@ -419,110 +403,101 @@ int Ghost::updateYellow(Grid* grid) {
 // Game State --------------------------------------------------------------
 
 GameState::GameState(const char* mapFile) {
-
-    if (!mapFile)
-        return;
+    if (!mapFile) return;
 
     int posDefined[12] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
     Vec2 genPosition;
 
-    this -> ghost[0].type = RED;
-    this -> ghost[1].type = BLUE;
-    this -> ghost[2].type = GREEN;
-    this -> ghost[3].type = YELLOW;
+    this->ghost[0].type = RED;
+    this->ghost[1].type = BLUE;
+    this->ghost[2].type = GREEN;
+    this->ghost[3].type = YELLOW;
 
-    this -> grid = new Grid(ROWS, COLS);
-    this -> grid -> readGrid(mapFile, posDefined);
+    this->grid = new Grid(ROWS, COLS);
+    this->grid->readGrid(mapFile, posDefined);
 
     // Check if Pacman already defined
     if (posDefined[0] == -1) {
         do {
             genPosition.x = getRand(0, COLS);
             genPosition.y = getRand(0, ROWS);
-        } while (*this -> grid -> at(genPosition) != EMPTY);
-        
-        this -> pacman.position = genPosition;
-        *this -> grid -> at(genPosition) = PACMAN;
+        } while (*this->grid->at(genPosition) != EMPTY);
+
+        this->pacman.position = genPosition;
+        *this->grid->at(genPosition) = PACMAN;
     } else {
-        this -> pacman.position.x = posDefined[0]/ROWS;
-        this -> pacman.position.y = posDefined[0]%ROWS;
+        this->pacman.position.x = posDefined[0] / ROWS;
+        this->pacman.position.y = posDefined[0] % ROWS;
     }
-    
+
     // Check if Ghosts are defined
     for (int i = 0; i < 4; i++) {
-        if (posDefined[i+1] == -1) {
-            do
-            {
+        if (posDefined[i + 1] == -1) {
+            do {
                 genPosition.x = getRand(0, COLS);
-                genPosition.y = getRand(0, ROWS); 
-            } while (*this -> grid -> at(genPosition) != EMPTY);
+                genPosition.y = getRand(0, ROWS);
+            } while (*this->grid->at(genPosition) != EMPTY);
 
-            this -> ghost[i].position = genPosition;
-            *this -> grid -> at(genPosition) = this -> ghost[i].type;
-        }
-        else {
-            this -> ghost[i].position.x = posDefined[i+1]/ROWS;
-            this -> ghost[i].position.y = posDefined[i+1]%ROWS;
+            this->ghost[i].position = genPosition;
+            *this->grid->at(genPosition) = this->ghost[i].type;
+        } else {
+            this->ghost[i].position.x = posDefined[i + 1] / ROWS;
+            this->ghost[i].position.y = posDefined[i + 1] % ROWS;
         }
 
         char randDir = getRand(0, 4);
-        switch ((DirectionType) randDir) {
-                case left:
-                    this -> ghost[i].direction.pointLeft();
-                    break;
-                case right:
-                    this -> ghost[i].direction.pointRight();
-                    break;
-                case down:
-                    this -> ghost[i].direction.pointDown();
-                    break;
-                case up:
-                    this -> ghost[i].direction.pointUp();
-                    break;        
-            }
+        switch ((DirectionType)randDir) {
+            case left:
+                this->ghost[i].direction.pointLeft();
+                break;
+            case right:
+                this->ghost[i].direction.pointRight();
+                break;
+            case down:
+                this->ghost[i].direction.pointDown();
+                break;
+            case up:
+                this->ghost[i].direction.pointUp();
+                break;
+        }
     }
 
     for (int i = 0; i < 6; i++) {
-        if (posDefined[i+5] == -1) {
-            do
-            {
+        if (posDefined[i + 5] == -1) {
+            do {
                 genPosition.x = getRand(0, COLS);
-                genPosition.y = getRand(0, ROWS); 
-            } while (*this -> grid -> at(genPosition) != EMPTY);
+                genPosition.y = getRand(0, ROWS);
+            } while (*this->grid->at(genPosition) != EMPTY);
 
-            *this -> grid -> at(genPosition) = FILE1 + i;
+            *this->grid->at(genPosition) = FILE1 + i;
         }
     }
 
     // Max visibility determined by gridsize
-    if (this -> grid -> cols > this -> grid -> rows)
-        this -> maxVisibility = this -> grid -> cols / 2;
+    if (this->grid->cols > this->grid->rows)
+        this->maxVisibility = this->grid->cols / 2;
     else
-        this -> maxVisibility = this -> grid -> rows / 2;
-    
-    this -> round = 0;
-    this -> remaining_pellets = 6;
+        this->maxVisibility = this->grid->rows / 2;
+
+    this->round = 0;
+    this->remaining_pellets = 6;
 }
 
-GameState::~GameState() {
-    this -> grid -> ~Grid();
-}
+GameState::~GameState() { this->grid->~Grid(); }
 
 int GameState::updateGameState(DirectionType directionPacman) {
-    // Return Win Game 
-    if (this -> remaining_pellets == 0)
-        return 7;
-    
-    int foundFile = this -> pacman.updatePacman(this -> grid, directionPacman);
+    // Return Win Game
+    if (this->remaining_pellets == 0) return 7;
+
+    int foundFile = this->pacman.updatePacman(this->grid, directionPacman);
 
     // Die on Player Move
-    if (foundFile == -1)
-        return -1;
+    if (foundFile == -1) return -1;
 
-    this ->ghost[0].updateRed(this->grid);
-    this ->ghost[1].updateBlue(this->grid);
-    this ->ghost[2].updateGreen(this->grid);
-    this ->ghost[3].updateYellow(this->grid);
+    this->ghost[0].updateRed(this->grid);
+    this->ghost[1].updateBlue(this->grid);
+    this->ghost[2].updateGreen(this->grid);
+    this->ghost[3].updateYellow(this->grid);
 
     // Player died on ghost move
     char check = *this->grid->at(this->pacman.position);
@@ -530,33 +505,58 @@ int GameState::updateGameState(DirectionType directionPacman) {
         return -1;
 
     // Return Next Square, if it is equal to a file value initiate transfer
-    if (foundFile > 0)
-        this -> remaining_pellets--;
+    if (foundFile > 0) this->remaining_pellets--;
 
     // Update round and vilibility
-    this -> round++;
-    if (this -> round % 5 == 0 )
-        if (this -> pacman.visibility < this -> maxVisibility)
-            this -> pacman.visibility++;
+    this->round++;
+    if (this->round % 5 == 0)
+        if (this->pacman.visibility < this->maxVisibility)
+            this->pacman.visibility++;
 
     return foundFile;
+}
+
+void GameState::printGrid() {
+    for (int i = 0; i < this->grid->rows; i++) {
+        for (int j = 0; i < this->grid->cols; j++) {
+            switch(*this->grid->at(i, j)) {
+                case WALL:
+                    printf("%s #  %s", );
+                case PACMAN:
+                    printf("P ");
+                case EMPTY:
+                case RED:
+                case BLUE:
+                case GREEN:
+                case YELLOW:
+                case FILE1: 
+                case FILE2: 
+                case FILE3: 
+                case FILE4: 
+                case FILE5: 
+                case FILE6: 
+            }
+            printf("\n");
+        }
+    }
 }
 /*
 char* GameState::readGameGrid(int* GridSize) {
     cerr << "Entered read grid\n";
     char* returnGrid;
-    int readAmount = (this -> pacman.visibility + 2) * (this -> pacman.visibility + 2);
-    returnGrid = new char[readAmount];
+    int readAmount = (this -> pacman.visibility + 2) * (this ->
+pacman.visibility + 2); returnGrid = new char[readAmount];
 
-    int readPos = ((this -> pacman.position.x - this->pacman.visibility) * this->grid->rows)
+    int readPos = ((this -> pacman.position.x - this->pacman.visibility) *
+this->grid->rows)
                     + this -> pacman.position.y - this->pacman.visibility;
-    
+
     int i = 0;
     while (i < readAmount)
     {
-        memcpy(&returnGrid[i], &this -> grid->spots[readPos], this -> pacman.visibility);
-        readPos += this -> grid -> rows;
-        i += this -> pacman.visibility;
+        memcpy(&returnGrid[i], &this -> grid->spots[readPos], this ->
+pacman.visibility); readPos += this -> grid -> rows; i += this ->
+pacman.visibility;
     }
 
     *GridSize = readAmount;

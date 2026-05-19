@@ -94,5 +94,8 @@ struct GameState {
     ~GameState();
     int updateGameState(DirectionType directionPacman);
     char* readGameGrid(int* GridSize);
+
+    void printGrid();
+    void printGridBlind();
 };
 typedef GameState GameState;
