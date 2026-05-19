@@ -13,7 +13,8 @@
 #define FILE5 '5'
 #define FILE6 '6'
 
-
+#define COLS 7
+#define ROWS 7
 
 
 struct Vec2 {
@@ -32,7 +33,8 @@ struct Grid {
     inline char* at(int row, int col);
     inline char* at(Vec2 pos);
 
-    void readGrid(std::ifstream *file);
+    void readGrid(const char* filename);
+    void readGrid(const char* filename, int defPositions[12]);
 };
 typedef struct Grid Grid;
 
@@ -60,6 +62,7 @@ struct Pacman {
     int visibility;
 
     Pacman();
+    int updatePacman(Grid* grid, DirectionType directionPacman);
 };
 typedef struct Pacman Pacman;
 
@@ -68,7 +71,7 @@ struct Ghost {
     Vec2 position;
     int option;  // used when green decides if uses updateLeft or updateRight
     Direction direction;
-    int (*update)(struct Ghost* ghost, Grid* grid);
+    //int (*update)(struct Ghost* ghost, Grid* grid);
 
     int updateRed(Grid* grid);
     int updateBlue(Grid* grid);
@@ -89,7 +92,7 @@ struct GameState {
 
     GameState(const char* mapFile);
     ~GameState();
-    void updateGameState(DirectionType directionPacman);
-
+    int updateGameState(DirectionType directionPacman);
+    char* readGameGrid(int* GridSize);
 };
 typedef GameState GameState;

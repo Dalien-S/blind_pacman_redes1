@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
         cout << "error on setsockopt for timeout\n";
         exit(1);
     }
-    int mode;
+    //int mode;
 
     if (strcmp(argv[1], "--server") == 0) {
         // const char* file_name = "bee_movie.txt";

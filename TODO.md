@@ -33,3 +33,6 @@
         - [ ] a definir
     - [ ] *Comunicar* a lógica do jogo 
 
+- Arrumar Fantasmas (logica parece estar errada/nao esta funcionando direito)
+    - Alguns não movem, outros criam clones, e alguns dao segfault
+    - Alguns sobreescrevem pellets
