@@ -17,6 +17,7 @@
 using std::cerr;
 using std::cin;
 
+// 5x5 grid
 const char small_grid[] = {
     WALL,  PACMAN, EMPTY, RED,  BLUE, GREEN, YELLOW, FILE1, FILE2,
     FILE3, WALL,   WALL,  WALL, WALL, WALL,  WALL,   WALL,  WALL,
@@ -26,12 +27,20 @@ const char small_grid[] = {
 KermitPacket packet;
 
 void receiveGrid(int socket, std::vector<char>* buffer) {
+    // dummy
+    packet.send(socket, PacketType::ack, buffer->data(), 0);
+    packet.confirmSend(socket);
+
     PacketType type = packet.receive(socket, buffer);
     if (type != PacketType::data) {
         cerr << "error when receiving grid: (did not receive "
                 "PacketType::data)\n";
         exit(1);
     }
+
+    // dummy
+    packet.send(socket, PacketType::ack, buffer->data(), 0);
+    packet.confirmSend(socket);
 }
 
 void receiveFile(int socket, PacketType type, const std::vector<char>* buffer) {
@@ -78,6 +87,10 @@ void receiveFile(int socket, PacketType type, const std::vector<char>* buffer) {
     f.write(copy.data(), copy.size());
 
     f.close();
+
+    // dummy
+    packet.send(socket, ack, copy.data(), 0);
+    packet.confirmSend(socket);
 }
 
 void openFile(const std::vector<char>* filename, PacketType type) {
@@ -191,15 +204,8 @@ int runClient(int socket) {
                 cerr << "rows: " << (int)rows << "\n";
                 cerr << "cols: " << (int)cols << "\n";
 
-                // dummy message to switch the server again to "send-mode"
-                packet.send(socket, PacketType::ack, buffer.data(), 0);
-                packet.confirmSend(socket);
-
                 receiveGrid(socket, &buffer);
                 printGridFromBuffer(buffer.data(), rows, cols);
-
-                packet.send(socket, PacketType::ack, buffer.data(), 0);
-                packet.confirmSend(socket);
 
                 break;
 
@@ -207,27 +213,18 @@ int runClient(int socket) {
                 cerr << "TXT OUTSIDE\n";
                 receiveFile(socket, type, &buffer);
                 openFile(&buffer, txt);
-
-                packet.send(socket, ack, buffer.data(), 0);
-                packet.confirmSend(socket);
                 break;
 
             case jpg:
                 cerr << "JPG OUTSIDE\n";
                 receiveFile(socket, type, &buffer);
                 openFile(&buffer, jpg);
-
-                packet.send(socket, ack, buffer.data(), 0);
-                packet.confirmSend(socket);
                 break;
 
             case mp4:
                 cerr << "MP4 OUTSIDE\n";
                 receiveFile(socket, type, &buffer);
                 openFile(&buffer, mp4);
-
-                packet.send(socket, ack, buffer.data(), 0);
-                packet.confirmSend(socket);
                 break;
 
             case end_transmission:
@@ -299,8 +296,8 @@ void serverTest(int socket) {
 
                 packet.send(socket, data, small_grid, 5 * 5);
                 packet.confirmSend(socket);
-                
-                packet.receive(socket, &buffer); // dummy
+
+                packet.receive(socket, &buffer);  // dummy
                 break;
 
             case walk_left:
