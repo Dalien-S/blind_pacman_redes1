@@ -1,5 +1,5 @@
-// compile with: g++ kermit.cpp logging.cpp pacman.cpp raw_sockets.cpp
-// client.cpp -o client
+// compile with: g++ kermit.cpp logging.cpp pacman.cpp raw_sockets.cpp client.cpp -o client
+// 
 
 #include <pwd.h>
 #include <string.h>
@@ -155,12 +155,13 @@ void openFile(const std::vector<char>* filename, PacketType type) {
 }
 
 int runClient(int socket) {
-    Logger client_logger = Logger::initLogger("client.log");
+    //Logger client_logger = Logger::initLogger("client.log");
+    setKermitLogger("client.log");
     std::vector<char> buffer;  // auxiliary buffer for storing messages
 
     bool game_is_running = true;
-    char rows = 0;
-    char cols = 0;
+    int rows = 0;
+    int cols = 0;
     do {
         PacketType type = packet.receive(socket, &buffer);
         char dir;
@@ -198,15 +199,14 @@ int runClient(int socket) {
                 break;
 
             case visualize:
-                rows = buffer.data()[0];
-                cols = buffer.data()[1];
+                memcpy(&rows, buffer.data(), sizeof(int));
+                memcpy(&cols, buffer.data() + sizeof(int), sizeof(int));
                 // TODO: change cerr to logger later
-                cerr << "rows: " << (int)rows << "\n";
-                cerr << "cols: " << (int)cols << "\n";
-
+                cerr << "rows: " << rows << "\n";
+                cerr << "cols: " << cols << "\n";
+                
                 receiveGrid(socket, &buffer);
                 printGridFromBuffer(buffer.data(), rows, cols);
-
                 break;
 
             case PacketType::txt:
@@ -239,10 +239,10 @@ int runClient(int socket) {
         }
     } while (game_is_running);
 
-    Logger::terminateLogger(&client_logger);
+    //Logger::terminateLogger(&client_logger);
     return 0;
 }
-
+/*
 void sendFile(int socket, const char* filename, PacketType type) {
     std::vector<char> aux;
     std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -286,10 +286,15 @@ void serverTest(int socket) {
 
         switch (type) {
             case walk_up:
-                buffer.push_back(5);  // rows
-                buffer.push_back(5);  // cols
-
-                packet.send(socket, visualize, buffer.data(), 2);
+                buffer.clear();
+                buffer.resize(sizeof(int)*2);
+                int rows, cols;
+                rows = cols = 5;
+                memcpy(buffer.data(), &rows, sizeof(int));
+                memcpy(buffer.data() + sizeof(int), &cols, sizeof(int));
+                //buffer.push_back(5);  // rows
+                //buffer.push_back(5);  // cols
+                packet.send(socket, visualize, buffer.data(), sizeof(int)*2);
                 packet.confirmSend(socket);
 
                 packet.receive(socket, &buffer);  // dummy
@@ -324,10 +329,12 @@ void serverTest(int socket) {
         }
     } while (game_is_running);
 }
-
+*/
+/*
 #ifdef CLIENT
 #endif
-
+*/
+/*
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         cout << "Usage: <program> --client|--user\n";
@@ -336,7 +343,7 @@ int main(int argc, char* argv[]) {
 
     cout << "Hello :)\n";
 
-    int socket = cria_raw_socket((char*)"enp3s0");
+    int socket = cria_raw_socket((char*)"enp5s0");
     if (socket == -1) {
         cerr << "Error when creating socket" << "\n";
         exit(1);
@@ -373,3 +380,4 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 }
+*/
