@@ -18,10 +18,12 @@ using std::cerr;
 using std::cin;
 
 // 5x5 grid
+// 6x6
 const char small_grid[] = {
     WALL,  PACMAN, EMPTY, RED,  BLUE, GREEN, YELLOW, FILE1, FILE2,
     FILE3, WALL,   WALL,  WALL, WALL, WALL,  WALL,   WALL,  WALL,
-    WALL,  WALL,   WALL,  WALL, WALL, WALL,  WALL,
+    WALL,  WALL,   WALL,  WALL, WALL, WALL,  WALL,   WALL,  WALL,
+    WALL,  WALL,   WALL,  WALL, WALL, WALL,  WALL,   WALL,  WALL,
 };
 
 KermitPacket packet;
@@ -126,8 +128,13 @@ void openFile(const std::vector<char>* filename, PacketType type) {
         exit(1);
     }
 
-    struct passwd* pw = getpwnam("dalien");
-    if (!pw) exit(1);
+    const char* user = getenv("SUDO_USER");
+    struct passwd* pw = getpwnam(user);
+    // struct passwd* pw = getpwnam("daniel");
+    if (!pw) {
+        perror("pw");
+        exit(1);
+    }
 
     // child process
     if (pid == 0) {
@@ -286,15 +293,15 @@ void serverTest(int socket) {
 
         switch (type) {
             case walk_up:
-                buffer.push_back(5);  // rows
-                buffer.push_back(5);  // cols
+                buffer.push_back(6);  // rows
+                buffer.push_back(6);  // cols
 
                 packet.send(socket, visualize, buffer.data(), 2);
                 packet.confirmSend(socket);
 
                 packet.receive(socket, &buffer);  // dummy
 
-                packet.send(socket, data, small_grid, 5 * 5);
+                packet.send(socket, data, small_grid, 6 * 6);
                 packet.confirmSend(socket);
 
                 packet.receive(socket, &buffer);  // dummy
@@ -336,7 +343,7 @@ int main(int argc, char* argv[]) {
 
     cout << "Hello :)\n";
 
-    int socket = cria_raw_socket((char*)"enp3s0");
+    int socket = cria_raw_socket((char*)"enp2s0");
     if (socket == -1) {
         cerr << "Error when creating socket" << "\n";
         exit(1);
