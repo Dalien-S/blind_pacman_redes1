@@ -189,7 +189,7 @@ int runClient(int socket) {
     setKermitLogger("client.log");
     std::vector<char> buffer;  // auxiliary buffer for storing messages
 
-    bool game_is_running = true;
+    char game_is_running = 0;
     int rows = 0;
     int cols = 0;
     do {
@@ -261,8 +261,7 @@ int runClient(int socket) {
                 break;
 
             case end_transmission:
-                game_is_running = false;
-
+                game_is_running = (buffer.data())[0];
                 packet.send(socket, ack, buffer.data(), 0);
                 packet.confirmSend(socket);
                 break;
@@ -270,8 +269,14 @@ int runClient(int socket) {
             default:
                 cout << "other\n";
         }
-    } while (game_is_running);
-
+    } while (game_is_running == 0);
+    // Game Win
+    cerr << game_is_running << '\n';
+    if (game_is_running == '1') {
+        cerr << "YOU WIN THE GAME!!!\n";
+    } else if (game_is_running == '2'){
+        cerr << "YOU LOSE!!!\n";
+    }
     //Logger::terminateLogger(&client_logger);
     return 0;
 }

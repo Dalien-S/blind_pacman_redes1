@@ -201,7 +201,10 @@ int Pacman::updatePacman(Grid* grid, DirectionType directionPacman) {
 
     // Game Over
     if (GHOST_COLLISION(nextSquare))
+    {
+        *(grid->at(this->position)) = EMPTY;
         return -1;
+    }
     else
         switch (nextSquare) {
             case WALL:
@@ -242,9 +245,10 @@ int Pacman::updatePacman(Grid* grid, DirectionType directionPacman) {
 int Ghost::updateRed(Grid* grid) {
     bool valid_next_position = false;
     int counter = 0;
+    int ret = 0;
     Vec2 next_pos;
     do {
-        if (counter == 4) return 1;
+        if (counter == 4) return -1;
         next_pos = {
             .x = this->position.x + this->direction.v.x,
             .y = this->position.y + this->direction.v.y,
@@ -256,57 +260,62 @@ int Ghost::updateRed(Grid* grid) {
         else
             next_spot = *grid->at(next_pos);
 
-        switch (this->direction.type) {
-            case DirectionType::up:
-                if (next_spot != EMPTY) {
-                    this->direction.pointLeft();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
+        if (next_spot != PACMAN)
+            switch (this->direction.type) {
+                case DirectionType::up:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointLeft();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
 
-            case DirectionType::left:
-                if (next_spot != EMPTY) {
-                    this->direction.pointDown();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
+                case DirectionType::left:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointDown();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
 
-            case DirectionType::down:
-                if (next_spot != EMPTY) {
-                    this->direction.pointRight();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
+                case DirectionType::down:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointRight();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
 
-            case DirectionType::right:
-                if (next_spot != EMPTY) {
-                    this->direction.pointUp();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
-            default:
-                break;
-        }
-        counter++;
-    } while (!valid_next_position);
+                case DirectionType::right:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointUp();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            else
+                ret = 1;
+
+            counter++;
+        } while (!valid_next_position);
 
     *grid->at(this->position.y, this->position.x) = EMPTY;
     this->position = next_pos;
     *grid->at(this->position.y, this->position.x) = this->type;
-
-    return 0;
+    
+    return ret;
 };
 
 int Ghost::updateBlue(Grid* grid) {
     bool valid_next_position = false;
     int counter = 0;
+    int ret = 0;
     Vec2 next_pos;
     do {
-        if (counter == 4) return 1;
+        if (counter == 4) return -1;
         next_pos = {
             .x = this->position.x + this->direction.v.x,
             .y = this->position.y + this->direction.v.y,
@@ -318,41 +327,44 @@ int Ghost::updateBlue(Grid* grid) {
         else
             next_spot = *grid->at(next_pos);
 
-        switch (this->direction.type) {
-            case DirectionType::up:
-                if (next_spot != EMPTY) {
-                    this->direction.pointRight();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
+        if (next_spot != PACMAN)
+            switch (this->direction.type) {
+                case DirectionType::up:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointRight();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
 
-            case DirectionType::right:
-                if (next_spot != EMPTY) {
-                    this->direction.pointDown();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
+                case DirectionType::right:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointDown();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
 
-            case DirectionType::down:
-                if (next_spot != EMPTY) {
-                    this->direction.pointLeft();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
+                case DirectionType::down:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointLeft();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
 
-            case DirectionType::left:
-                if (next_spot != EMPTY) {
-                    this->direction.pointUp();
-                } else {
-                    valid_next_position = true;
-                }
-                break;
-            default:
-                break;
-        }
+                case DirectionType::left:
+                    if (next_spot != EMPTY) {
+                        this->direction.pointUp();
+                    } else {
+                        valid_next_position = true;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        else
+            ret = 1;
         counter++;
     } while (!valid_next_position);
 
@@ -360,18 +372,19 @@ int Ghost::updateBlue(Grid* grid) {
     this->position = next_pos;
     *grid->at(this->position.y, this->position.x) = this->type;
 
-    return 0;
+    return ret;
 };
 
 int Ghost::updateGreen(Grid* grid) {
+    int ret;
     if (this->option % 2 == 0) {
-        this->updateRed(grid);
+        ret = this->updateRed(grid);
     } else {
-        this->updateBlue(grid);
+        ret = this->updateBlue(grid);
     }
     this->option++;
 
-    return 0;
+    return ret;
 };
 
 int Ghost::updateYellow(Grid* grid) {
@@ -380,10 +393,11 @@ int Ghost::updateYellow(Grid* grid) {
     bool checkDown = false;
     bool checkLeft = false;
     bool checkRight = false;
+    int ret = 0;
 
     Vec2 next_pos;
     do {
-        if (checkUp && checkDown && checkLeft && checkRight) return 1;
+        if (checkUp && checkDown && checkLeft && checkRight) return -1;
         int choice = rand() % 4;  // up, left, down, right
         switch (choice) {
             case up:
@@ -414,6 +428,10 @@ int Ghost::updateYellow(Grid* grid) {
         else
             next_spot = *grid->at(next_pos);
 
+        if (next_spot == PACMAN) {
+            valid_next_position = true;
+            ret = 1;
+        }
         if (next_spot == EMPTY) {
             valid_next_position = true;
         }
@@ -424,7 +442,7 @@ int Ghost::updateYellow(Grid* grid) {
     this->position = next_pos;
     *grid->at(this->position.y, this->position.x) = this->type;
 
-    return 0;
+    return ret;
 };
 
 // Game State --------------------------------------------------------------
@@ -508,6 +526,7 @@ GameState::GameState(const char* mapFile) {
     else
         this->maxVisibility = this->grid->rows;
 
+    this->win = 0;
     this->round = 0;
     this->remaining_pellets = 6;
 }
@@ -517,21 +536,31 @@ GameState::~GameState() {
 }
 
 int GameState::updateGameState(DirectionType directionPacman) {
-    this->ghost[0].updateRed(this->grid);
-    this->ghost[1].updateBlue(this->grid);
-    this->ghost[2].updateGreen(this->grid);
-    this->ghost[3].updateYellow(this->grid);
+    if (this->ghost[0].updateRed(this->grid) == 1)
+        this -> win = -1;
+    if (this->ghost[1].updateBlue(this->grid) == 1)
+        this -> win = -1;
+    if (this->ghost[2].updateGreen(this->grid) == 1)
+        this -> win = -1;
+    if (this->ghost[3].updateYellow(this->grid) == 1)
+        this -> win = -1;
 
     int foundFile = this->pacman.updatePacman(this->grid, directionPacman);
 
     // Die on Player Move
-    if (foundFile == LOSE) return LOSE;
+    if (foundFile == LOSE) { 
+        this -> win = -1;
+        return foundFile;
+    }
 
     // Return Next Square, if it is equal to a file value initiate transfer
     if (foundFile > 0) this->remaining_pellets--;
 
     // Return Win Game
-    if (this->remaining_pellets == 0) return WIN;
+    if (this->remaining_pellets == 0) {
+        this -> win = 1;
+        return foundFile;
+    }
 
     // Update round and vilibility
     this->round++;

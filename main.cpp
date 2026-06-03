@@ -17,12 +17,12 @@ using std::cout;
 
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        cout << "Usage: <program> --client|--server\n";
+    if (argc < 3) {
+        cout << "Usage: <program> --client|--server socket [mapfile]\n";
         exit(1);
     }
 
-    int socket = cria_raw_socket((char*)"enp2s0");
+    int socket = cria_raw_socket((char*)argv[2]);
     if (socket == -1) {
         cerr << "Error when creating socket" << "\n";
         exit(1);
@@ -43,10 +43,11 @@ int main(int argc, char* argv[]) {
     }
 
     if (strcmp(argv[1], "--server") == 0) {
-        if (argc == 3)
-            runServer(socket, argv[2]);
+        // If map is defined
+        if (argc == 4)
+            runServer(socket, argv[3]);
         else
-            runServer(socket, NULL);
+            runServer(socket, "baseMap.csv");
     } else if (strcmp(argv[1], "--client") == 0) {
         runClient(socket);
     } else {

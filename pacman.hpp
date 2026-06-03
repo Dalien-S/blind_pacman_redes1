@@ -91,10 +91,10 @@ struct GameState {
     Grid *grid;
     Pacman pacman;
     Ghost ghost[4];
-    // Todo Include Files for pellets;
     int remaining_pellets;
     int round;
     int maxVisibility;
+    int win;
 
     GameState(const char* mapFile);
     ~GameState();
