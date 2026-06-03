@@ -535,7 +535,17 @@ GameState::~GameState() {
     this->grid->~Grid();
 }
 
-int GameState::updateGameState(DirectionType directionPacman) {
+int GameState::updateGameState(DirectionType directionPacman) { 
+    
+    int foundFile = this->pacman.updatePacman(this->grid, directionPacman);
+
+    // Die on Player Move
+    if (foundFile == LOSE) { 
+        this -> win = -1;
+        return foundFile;
+    }
+    
+    // Update Ghosts
     if (this->ghost[0].updateRed(this->grid) == 1)
         this -> win = -1;
     if (this->ghost[1].updateBlue(this->grid) == 1)
@@ -544,14 +554,6 @@ int GameState::updateGameState(DirectionType directionPacman) {
         this -> win = -1;
     if (this->ghost[3].updateYellow(this->grid) == 1)
         this -> win = -1;
-
-    int foundFile = this->pacman.updatePacman(this->grid, directionPacman);
-
-    // Die on Player Move
-    if (foundFile == LOSE) { 
-        this -> win = -1;
-        return foundFile;
-    }
 
     // Return Next Square, if it is equal to a file value initiate transfer
     if (foundFile > 0) this->remaining_pellets--;
