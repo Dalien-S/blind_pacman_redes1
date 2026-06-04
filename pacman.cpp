@@ -66,11 +66,11 @@ Grid::~Grid() {
 }
 
 inline char* Grid::at(int row, int col) {
-    return &this->spots[row + col * this->cols];
+    return &this->spots[col + row * this->cols];
 }
 
 inline char* Grid::at(Vec2 pos) {
-    return &this->spots[pos.y + pos.x * this->cols];
+    return &this->spots[pos.x + pos.y * this->cols];
 }
 
 void Grid::readGrid(const char* filename) {
@@ -141,7 +141,7 @@ void Grid::readGrid(const char* filename, int defPositions[12]) {
             defPositions[checkElement(buffer[i])] = gridWrite;
             gridWrite++;
         }
-        readPos += this->rows * 2 + 2;
+        readPos += this->rows * 2 + 1;
     }
     return;
 }
@@ -471,8 +471,8 @@ GameState::GameState(const char* mapFile) {
         this->pacman.position = genPosition;
         *this->grid->at(genPosition) = PACMAN;
     } else {
-        this->pacman.position.x = posDefined[0] / ROWS;
-        this->pacman.position.y = posDefined[0] % ROWS;
+        this->pacman.position.x = posDefined[0] % ROWS;
+        this->pacman.position.y = posDefined[0] / ROWS;
     }
 
     // Check if Ghosts are defined
@@ -486,8 +486,8 @@ GameState::GameState(const char* mapFile) {
             this->ghost[i].position = genPosition;
             *this->grid->at(genPosition) = this->ghost[i].type;
         } else {
-            this->ghost[i].position.x = posDefined[i + 1] / ROWS;
-            this->ghost[i].position.y = posDefined[i + 1] % ROWS;
+            this->ghost[i].position.x = posDefined[i + 1] % ROWS;
+            this->ghost[i].position.y = posDefined[i + 1] / ROWS;
         }
 
         char randDir = getRand(0, 4);
@@ -526,6 +526,7 @@ GameState::GameState(const char* mapFile) {
     else
         this->maxVisibility = this->grid->rows;
 
+    this->printGrid();
     this->win = 0;
     this->round = 0;
     this->remaining_pellets = 6;
@@ -638,7 +639,7 @@ void GameState::printGridBlind() {
                         pacman_logger.printColor(color::yellow, "@ ");
                         break;
                     case EMPTY:
-                        pacman_logger.print("  ");
+                        pacman_logger.print(". ");
                         break;
                     case RED:
                         pacman_logger.printColor(color::red, "A ");
@@ -688,7 +689,7 @@ char* GameState::readGameGrid(int* GridSize, int* center) {
          i <= this->pacman.position.y + this->pacman.visibility; i++)
         for (int j = this->pacman.position.x - this->pacman.visibility;
              j <= this->pacman.position.x + this->pacman.visibility; j++) {
-            if (CHECK_BOUNDS(i, j))
+            if (CHECK_BOUNDS(j, i))
                 returnGrid[written] = OUTBOUNDS;
             else
                 returnGrid[written] = *this->grid->at(i, j);
@@ -716,7 +717,7 @@ void printGridFromBuffer(const char* buffer, int rows, int cols) {
                     pacman_logger.printColor(color::yellow, "@ ");
                     break;
                 case EMPTY:
-                    pacman_logger.print("  ");
+                    pacman_logger.print(". ");
                     break;
                 case RED:
                     pacman_logger.printColor(color::red, "A ");
