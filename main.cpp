@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
         if (argc == 4)
             runServer(socket, argv[3]);
         else
-            runServer(socket, "baseMap.csv");
+            runServer(socket, "ufpr.csv");
     } else if (strcmp(argv[1], "--client") == 0) {
         runClient(socket);
     } else {

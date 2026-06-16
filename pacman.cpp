@@ -732,16 +732,16 @@ void printGridFromBuffer(const char* buffer, int rows, int cols) {
                     pacman_logger.printColor(color::magenta, "A ");
                     break;
                 case FILE1:
-                    pacman_logger.printColor(color::yellow, "1 ");
+                    pacman_logger.printColor(color::yellow, "o ");
                     break;
                 case FILE2:
-                    pacman_logger.printColor(color::yellow, "2 ");
+                    pacman_logger.printColor(color::yellow, "o ");
                     break;
                 case FILE3:
-                    pacman_logger.printColor(color::yellow, "3 ");
+                    pacman_logger.printColor(color::yellow, "o ");
                     break;
                 case FILE4:
-                    pacman_logger.printColor(color::yellow, "4 ");
+                    pacman_logger.printColor(color::yellow, "o ");
                     break;
                 case FILE5:
                     pacman_logger.printColor(color::yellow, "o ");
