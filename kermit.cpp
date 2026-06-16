@@ -75,6 +75,13 @@ int KermitPacket::sendPacket(int socket) {
         return send_error;
     }
 
+    // kermit_logger.printColor(color::red, "printing data\n");
+    kermit_logger.print("data sent (escaped): (");
+    for (unsigned int i = 0; i < written_bytes; i++) {
+        kermit_logger.printColor(color::red, "%02x", frame[i]);
+    }
+    kermit_logger.print(")\n");
+
     return no_error;
 }
 
@@ -107,11 +114,17 @@ PacketError KermitPacket::receivePacket(int socket) {
         return wrong_init_marker;
     }
 
-    this->printData();
 
     if (checkCRC() == false) {
         return wrong_crc;
     }
+
+    kermit_logger.print("data received (escaped): (");
+    for (int i = 0; i < ret; i++) {
+        kermit_logger.printColor(color::red, "%02x", buffer[i]);
+    }
+    kermit_logger.print(")\n");
+    // this->printData();
 
     return no_error;
 }
@@ -509,7 +522,7 @@ void KermitPacket::printData() {
     kermit_logger.print("(");
     for (int i = 0; i < this->header.size; i++) {
         kermit_logger.printColor(color::red, "%02x",
-                                 (unsigned char)this->data[i]);
+                                 (char)this->data[i]);
     }
     kermit_logger.print(")\n");
     // cerr << ")\n";

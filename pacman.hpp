@@ -18,8 +18,8 @@
 #define WIN 7
 #define LOSE -1
 
-#define COLS 7
-#define ROWS 7
+#define COLS 40
+#define ROWS 40
 
 
 struct Vec2 {
@@ -91,10 +91,10 @@ struct GameState {
     Grid *grid;
     Pacman pacman;
     Ghost ghost[4];
-    // Todo Include Files for pellets;
     int remaining_pellets;
     int round;
     int maxVisibility;
+    int win;
 
     GameState(const char* mapFile);
     ~GameState();
