@@ -61,7 +61,7 @@ typedef enum {
 struct KermitPacket {
     struct {
         unsigned char init_marker = KERMIT_INIT_MARKER;
-        unsigned char size : 5;  // max size is 32B!!!
+        unsigned char size : 5;  // max size is 31B!!!
         unsigned char sequence : 6;
         PacketType type : 5;
     } header;
